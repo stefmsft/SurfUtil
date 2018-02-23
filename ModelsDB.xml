@@ -1,0 +1,58 @@
+<ModelsDB>
+    <SurfacesModels>
+        <Surface ID='Surface Pro'>
+            <Drivers url='http://www.bing.com'>
+            </Drivers>
+            <OS MinSupported='RS2'>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Pro4'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Pro3'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Laptop'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Studio'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Book'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Book 2'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Hub'>
+            <Drivers url=''>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+    </SurfacesModels>
+    <OSRelease>
+        <TH2 ReleaseCode='1511'></TH2>
+        <RS1 ReleaseCode='1607'></RS1>
+        <RS2 ReleaseCode='1603'></RS2>
+        <RS3 ReleaseCode='1709'></RS3>
+    </OSRelease>
+</ModelsDB>
