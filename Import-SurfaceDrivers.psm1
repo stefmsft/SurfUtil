@@ -1,3 +1,38 @@
+function Import-SurfaceDB
+    {
+
+        $DBFileName = ".\ModelsDB.xml"
+        If(test-path $DBFileName) {
+            [XML]$ModelDBFile = Get-Content $DBFileName
+        }
+        else {
+            Write-Verbose "Warning Model DB File not found" -Verbose
+
+        }
+    
+        $ModelsHT = @{}   # empty models hashtable
+
+        foreach ($Child in $ModelDBFile.ModelsDB.SurfacesModels.ChildNodes ) {
+
+                $ModelsHT.Add($Child.ID,$Child.Drivers.url)
+        }
+
+        $OSHT = @{}   # empty models hashtable
+
+        foreach ($Child in $ModelDBFile.ModelsDB.OSRelease.ChildNodes ) {
+
+                $OSHT.Add($Child.Name,$Child.ReleaseCode)
+        }
+
+    Write-Debug $ModelsHT.Keys
+    Write-Debug $ModelsHT.Values
+    Write-Debug $OSHT.Keys
+    Write-Debug $OSHT.Values
+
+    $CtxData = ($ModelsHT,$OSHT)
+
+    return $CtxData
+}
 function Import-SurfaceDrivers {
     <#
     .SYNOPSIS
@@ -11,13 +46,26 @@ function Import-SurfaceDrivers {
     .PARAMETER x
     TODO
     #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('Model')]
+        [string]$SurfaceModel = 'Surface Pro'
+    )
+
     begin {
         Write-Verbose "Begin procesing Import-SurfaceDrivers" -Verbose
+        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
     }
   
     process {
 
-        If (Set-DriverRepo) {
+        Write-Host "Check Drivers Repo for $SurfaceModel"
+        
+#        $urldrv = $SurfModelHT[$SurfaceModel]
+#        Write-Debug "$SurfaceModel, Driver url : $urldrv"
+
+        If (Set-DriverRepo -SubFolders $SurfaceModel) {
             Write-Verbose "Drivers Repo Checked and Set" -Verbose
         }
         else {
@@ -61,29 +109,29 @@ function Set-DriverRepo {
     )
   
     begin {
-        Write-Verbose "Begin procesing Driver Repo" -Verbose
+        Write-Verbose "Begin procesing Drivers Repo" -Verbose
     }
   
     process {
   
-        Write-Debug "Processing $RootRepo"
+        Write-Debug "Verify $RootRepo"
         try {
 
             If(!(test-path $RootRepo))
             {
+                Write-Debug "Create $RootRepo"
                 New-Item -ItemType Directory -Force -Path $RootRepo
             }
-      
+
             foreach ($s in $SubFolder) {
                 Write-Debug "Processing $s"
                 $TstSub = "$RootRepo\$s"
-                Write-Debug "Create Directory $TstSub"
+                Write-Debug "Verify Directory $TstSub"
                 If(!(test-path $TstSub))
                 {
                     New-Item -ItemType Directory -Force -Path $TstSub
                 }
             }
-
         }
         catch [System.Exception] {
             Write-Error $_.Exception.Message;
@@ -98,6 +146,55 @@ function Set-DriverRepo {
         Write-Verbose "End procesing Driver Repo" -Verbose
     }
 }
+
+function Squel {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('param1')]
+        [string]$Param1 = 'initValue'
+        ,
+        [Alias('param2')]
+        [int]$param2 = 1
+    )
+    
+    begin {
+        Write-Verbose "Begin procesing FunctionName" -Verbose
+    }
+  
+    process {
+
+        try {
+
+            #Something
+
+        }
+        catch [System.Exception] {
+            Write-Error $_.Exception.Message;
+            return $False
+        }
+
+        return $True
+    }
+
+    end {
+        Write-Verbose "End procesing FunctionName" -Verbose
+    }
+}
+
+
 
 $ModuleName = "Import-SurfaceDriver"
 Write-Host "Loading $ModuleName Module"
