@@ -1,0 +1,7 @@
+<Config>
+    <Defaults>
+        <RootRepo>.\Repo</RootRepo>
+        <SurfaceModel>Surface Pro LTE</SurfaceModel>
+        <TargetOS>latest</TargetOS>
+    </Defaults>
+</Config>

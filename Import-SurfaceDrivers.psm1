@@ -200,6 +200,29 @@ function Import-SurfaceDB
 
     return $CtxData
 }
+function Import-Config
+    {
+
+    $ConfFileName = ".\Config.xml"
+    If(test-path $ConfFileName) {
+        [XML]$ConfigFile = Get-Content $ConfFileName
+    }
+    else {
+        Write-Verbose "Warning Config File not found" -Verbose
+        return $null
+    }
+
+    $Defaults = @{}   # empty models hashtable
+
+    foreach ($Child in $ConfigFile.Config.Defaults.ChildNodes ) {
+        $Defaults.Add($Child.Name.tolower(),$Child.InnerText.tolower())
+    }
+
+    Write-Debug $Defaults.Keys
+    Write-Debug $Defaults.Values
+
+    return $Defaults
+}
 function Set-DriverRepo {
     <#
     .SYNOPSIS
@@ -282,7 +305,6 @@ function Import-SurfaceDrivers {
     [CmdletBinding()]
     param
     (
-        [Parameter(Position=0,mandatory=$true)]
         [Alias('Model')]
         [string]$SurfaceModel
         ,
@@ -296,9 +318,21 @@ function Import-SurfaceDrivers {
     begin {
         Write-Verbose "Begin procesing Import-SurfaceDrivers" -Verbose
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+        $DefaultFromConfigFile = Import-Config
     }
   
     process {
+
+        if ($SurfaceModel -eq "") {
+            if ('SurfaceModel' -in $DefaultFromConfigFile.Keys) {
+                Write-Verbose "Getting SurfaceModel from Defaults in Config file" -Verbose
+                $SurfaceModel = $DefaultFromConfigFile['SurfaceModel']
+            }
+            else {
+                Write-Error "Surface Model need to be specified in Input or in the Config file"
+                return $false
+            }
+        }
 
         Write-Host "Check Drivers Repo for $SurfaceModel"
 
