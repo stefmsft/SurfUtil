@@ -1,3 +1,170 @@
+function Get-LocalDriversInfo {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('RootRepo')]
+        [string]$RPath = '.\Repo'
+        ,
+        [Alias('Model')]
+        [string]$DrvModel
+        ,
+        [Alias('OSTarget')]
+        [string]$OVers
+    )
+    
+    begin {
+        Write-Verbose "Begin procesing Get-LocalDriversInfo" -Verbose
+        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+   }
+  
+    process {
+
+        try {
+
+            #Something
+
+        }
+        catch [System.Exception] {
+            Write-Error $_.Exception.Message;
+            return $False
+        }
+
+        return $True
+    }
+
+    end {
+        Write-Verbose "End procesing Get-LocalDriversInfo" -Verbose
+    }
+}
+function Get-RemoteDriversInfo {
+    <#
+    .SYNOPSIS
+    Check Online what are the available Driver Packages for a given Model
+    and optionally ask for a OS Target version Package
+    .DESCRIPTION
+    Retun an Array containing hashtable containing OS Target and Download URL
+    No MSI are downloaded from the function
+    .EXAMPLE
+    Get-RemoteDriversInfo "Surface Book"
+    .EXAMPLE
+    Get-RemoteDriversInfo -Model "Surface Pro4"
+    .EXAMPLE
+    Get-RemoteDriversInfo -Model "Surface Pro LTE" -OSTarget 1703
+    .PARAMETER DrvModel
+    Surface Model Name
+    .PARAMETER OSTarget
+    Optional - OS Version targeted by the driver package
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Position=0,mandatory=$true)]
+        [Alias('Model')]
+        [string]$DrvModel
+        ,
+        [Alias('OSTarget')]
+        [string]$OVers
+    )
+    
+    begin {
+        Write-Verbose "Begin procesing Get-RemoteDriversInfo" -Verbose
+        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+    }
+  
+    process {
+
+        try {
+
+            [System.Collections.ArrayList]$CurLst = @()
+            [System.Collections.ArrayList]$FoundDrvLst = @()
+            
+            if (($DrvModel -ne $null) -and ($DrvModel -ne "")) {
+                $urldrv = $SurfModelHT[$DrvModel.tolower()]
+                if ($urldrv -eq $null) {
+                    Write-Error "Unknown Surface Model for the script : [$DrvModel]"
+                    return $false
+                }
+            }
+
+            if (($OVers -ne $null) -and ($OVers -ne "")) {
+                $InternalR = $OSReleaseHT[$OVers.tolower()]
+                if ($InternalR -eq $null) {
+                    Write-Error "Unknown OS Release for the script : [$OVers]"
+                    return $false
+                }
+            }
+
+            Write-Verbose "Processing $urldrv" -Verbose
+
+            $DrvPage = Invoke-WebRequest -Uri $urldrv -UseBasicParsing
+
+            foreach ($link in $DrvPage.Links) {
+
+                $href = $link.href
+                if ($href -ne $null) {
+                    if ($href -like "*win10*.msi" ) {
+                        if ($href.tolower() -notin $CurLst) {
+
+                            $DrvPrsLst = $href.tolower() -split '/'
+                            $FileName = $DrvPrsLst[$DrvPrsLst.count-1] -split '.msi'
+                            $DriverInfo = $FileName[0] -split '_'
+                            $InternalVFound = $DriverInfo[$DriverInfo.count-3]
+
+                            if ($OSReleaseHT.containsValue($InternalVFound)) {
+                                $VFound = $OSReleaseHT.Keys | ForEach-Object { if ($OSReleaseHT.Item($_) -eq $InternalVFound ) {$_} }
+                            }
+                            else {
+                                $VFound = "1507"
+                            }
+
+                            $ret = $CurLst.Add($href.tolower())
+
+                            Write-Verbose "[$ret]:$href"  -Verbose
+                            Write-Verbose "Found OS Version is $VFound" -Verbose
+                            if ($OVers -ne "") {
+                                Write-Verbose "Asked OS Version is $OVers" -Verbose
+                                if ($Overs -eq $VFound) {
+                                    $FoundDrvHT = @{} 
+                                    $ret = $FoundDrvHT.Add("OSVersion",$VFound)
+                                    $ret = $FoundDrvHT.Add("Link",$href.tolower())
+                                    $ret = $FoundDrvLst.Add($FoundDrvHT)
+                                }
+                            }
+                            else {
+                                $FoundDrvHT = @{} 
+                                $ret = $FoundDrvHT.Add("OSVersion",$VFound)
+                                $ret = $FoundDrvHT.Add("Link",$href.tolower())
+                                $ret = $FoundDrvLst.Add($FoundDrvHT)
+                            }
+                        }
+                    }    
+                }
+            }
+        }
+        catch [System.Exception] {
+            Write-Error $_;
+            return $false
+        }
+
+        return $FoundDrvLst
+    }
+
+    end {
+        Write-Verbose "End procesing Get-RemoteDriversInfo" -Verbose
+    }
+}
 function Import-SurfaceDB
     {
 
@@ -14,14 +181,14 @@ function Import-SurfaceDB
 
         foreach ($Child in $ModelDBFile.ModelsDB.SurfacesModels.ChildNodes ) {
 
-                $ModelsHT.Add($Child.ID,$Child.Drivers.url)
+                $ModelsHT.Add($Child.ID.tolower(),$Child.Drivers.url.tolower())
         }
 
         $OSHT = @{}   # empty models hashtable
 
         foreach ($Child in $ModelDBFile.ModelsDB.OSRelease.ChildNodes ) {
 
-                $OSHT.Add($Child.Name,$Child.ReleaseCode)
+                $OSHT.Add($Child.ReleaseCode.tolower(),$Child.InternalCode.tolower())
         }
 
     Write-Debug $ModelsHT.Keys
@@ -33,54 +200,6 @@ function Import-SurfaceDB
 
     return $CtxData
 }
-function Import-SurfaceDrivers {
-    <#
-    .SYNOPSIS
-    TODO
-    .DESCRIPTION
-    TODO
-    .EXAMPLE
-    TODO
-    .EXAMPLE
-    TODO
-    .PARAMETER x
-    TODO
-    #>
-    [CmdletBinding()]
-    param
-    (
-        [Alias('Model')]
-        [string]$SurfaceModel = 'Surface Pro'
-    )
-
-    begin {
-        Write-Verbose "Begin procesing Import-SurfaceDrivers" -Verbose
-        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
-    }
-  
-    process {
-
-        Write-Host "Check Drivers Repo for $SurfaceModel"
-        
-#        $urldrv = $SurfModelHT[$SurfaceModel]
-#        Write-Debug "$SurfaceModel, Driver url : $urldrv"
-
-        If (Set-DriverRepo -SubFolders $SurfaceModel) {
-            Write-Verbose "Drivers Repo Checked and Set" -Verbose
-        }
-        else {
-            Write-Verbose "Error while checking Drivers Repo" -Verbose
-        }
-
-        return $True
-    }
-
-    end {
-        Write-Verbose "End procesing Import-SurfaceDrivers" -Verbose
-    }
-}
-
-
 function Set-DriverRepo {
     <#
     .SYNOPSIS
@@ -101,8 +220,9 @@ function Set-DriverRepo {
     [CmdletBinding()]
     param
     (
+        [Parameter(Position=0,mandatory=$true)]
         [Alias('Root')]
-        [string]$RootRepo = '.\Repo'
+        [string]$RootRepo
         ,
         [Alias('SubFolders')]
         [string[]]$SubFolder = ('Surface Book','Surface Book 2','Surface Pro','Surface Laptop','Surface Studio','Surface Pro4','Surface Pro3')
@@ -146,7 +266,70 @@ function Set-DriverRepo {
         Write-Verbose "End procesing Driver Repo" -Verbose
     }
 }
+function Import-SurfaceDrivers {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Position=0,mandatory=$true)]
+        [Alias('Model')]
+        [string]$SurfaceModel
+        ,
+        [Alias('OSTarget')]
+        [string]$OVers
+        ,
+        [Alias('Root')]
+        [string]$RootRepo = '.\Repo'   
+    )
 
+    begin {
+        Write-Verbose "Begin procesing Import-SurfaceDrivers" -Verbose
+        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+    }
+  
+    process {
+
+        Write-Host "Check Drivers Repo for $SurfaceModel"
+
+        If (Set-DriverRepo -RootRepo $RootRepo -SubFolders $SurfaceModel) {
+            Write-Verbose "Drivers Repo Checked and Set" -Verbose
+        }
+        else {
+            Write-Verbose "Error while checking Drivers Repo" -Verbose
+        }
+
+        if ($OVers -ne "") {
+            $RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
+        }
+        else {
+            $RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel
+        }
+
+        if ($OVers -ne "") {
+            $RemDrvInfo = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel -OSTarget $OVers
+        }
+        else {
+            $RemDrvInfo = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel
+        }
+
+        return $True
+    }
+
+    end {
+        Write-Verbose "End procesing Import-SurfaceDrivers" -Verbose
+    }
+}
 function Squel {
     <#
     .SYNOPSIS
@@ -203,3 +386,6 @@ Export-ModuleMember -Function Import-SurfaceDrivers
 
 $ThisModule = $MyInvocation.MyCommand.ScriptBlock.Module
 $ThisModule.OnRemove = { Write-Host "Module $ModuleName Unloaded" }
+
+
+
