@@ -25,7 +25,7 @@ function Get-LocalDriversInfo {
     )
     
     begin {
-        Write-Verbose "Begin procesing Get-LocalDriversInfo" -Verbose
+         Write-Verbose "Begin procesing Get-LocalDriversInfo"  
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
    }
   
@@ -33,8 +33,28 @@ function Get-LocalDriversInfo {
 
         try {
 
-            #Something
+            foreach ($DrvHashT in $Global:RemDrvInfo) {
+                $OSSub = $DrvHashT['OSVersion']
+                $LocalPathDir = "$RPath\$DrvModel\$OSSub"
+                write-verbose "Testing if $LocalPathDir exist"
+                If(!(test-path $LocalPathDir))
+                    {
+                        write-verbose "Create $LocalPathDir directory"
+                        New-Item -ItemType Directory -Force -Path $LocalPathDir | out-null
+                    }
+                
+                $Link = $DrvHashT['Link']
+                $SplitedLink = $Link.tolower() -split '/'
+                $FileName = $SplitedLink[$SplitedLink.count-1]
+                write-verbose "Check for $FileName"
+                $LocalPathFile = "$LocalPathDir\$FileName"
 
+                If(!(test-path $LocalPathFile))
+                    {
+                        write-host "$FileName is missing"
+                    }
+                }
+        return $true
         }
         catch [System.Exception] {
             Write-Error $_.Exception.Message;
@@ -45,7 +65,7 @@ function Get-LocalDriversInfo {
     }
 
     end {
-        Write-Verbose "End procesing Get-LocalDriversInfo" -Verbose
+         Write-Verbose "End procesing Get-LocalDriversInfo"  
     }
 }
 function Get-RemoteDriversInfo {
@@ -79,7 +99,7 @@ function Get-RemoteDriversInfo {
     )
     
     begin {
-        Write-Verbose "Begin procesing Get-RemoteDriversInfo" -Verbose
+        Write-Verbose "Begin procesing Get-RemoteDriversInfo"  
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
     }
   
@@ -90,7 +110,7 @@ function Get-RemoteDriversInfo {
             [System.Collections.ArrayList]$CurLst = @()
             [System.Collections.ArrayList]$FoundDrvLst = @()
             
-            if (($DrvModel -ne $null) -and ($DrvModel -ne "")) {
+            if ($DrvModel -ne "") {
                 $urldrv = $SurfModelHT[$DrvModel.tolower()]
                 if ($urldrv -eq $null) {
                     Write-Error "Unknown Surface Model for the script : [$DrvModel]"
@@ -106,7 +126,7 @@ function Get-RemoteDriversInfo {
                 }
             }
 
-            Write-Verbose "Processing $urldrv" -Verbose
+             Write-Verbose "Processing $urldrv"  
 
             $DrvPage = Invoke-WebRequest -Uri $urldrv -UseBasicParsing
 
@@ -131,10 +151,10 @@ function Get-RemoteDriversInfo {
 
                             $ret = $CurLst.Add($href.tolower())
 
-                            Write-Verbose "[$ret]:$href"  -Verbose
-                            Write-Verbose "Found OS Version is $VFound" -Verbose
+                             Write-Verbose "[$ret]:$href"   
+                             Write-Verbose "Found OS Version is $VFound"  
                             if ($OVers -ne "") {
-                                Write-Verbose "Asked OS Version is $OVers" -Verbose
+                                 Write-Verbose "Asked OS Version is $OVers"  
                                 if ($Overs -eq $VFound) {
                                     $FoundDrvHT = @{} 
                                     $ret = $FoundDrvHT.Add("OSVersion",$VFound)
@@ -162,7 +182,7 @@ function Get-RemoteDriversInfo {
     }
 
     end {
-        Write-Verbose "End procesing Get-RemoteDriversInfo" -Verbose
+         Write-Verbose "End procesing Get-RemoteDriversInfo"  
     }
 }
 function Import-SurfaceDB
@@ -173,11 +193,11 @@ function Import-SurfaceDB
             [XML]$ModelDBFile = Get-Content $DBFileName
         }
         else {
-            Write-Verbose "Warning Model DB File not found" -Verbose
+             Write-Verbose "Warning Model DB File not found"  
 
         }
     
-        $ModelsHT = @{}   # empty models hashtable
+        $ModelsHT = @{}                                 # empty models hashtable   
 
         foreach ($Child in $ModelDBFile.ModelsDB.SurfacesModels.ChildNodes ) {
 
@@ -191,10 +211,10 @@ function Import-SurfaceDB
                 $OSHT.Add($Child.ReleaseCode.tolower(),$Child.InternalCode.tolower())
         }
 
-    Write-Debug $ModelsHT.Keys
-    Write-Debug $ModelsHT.Values
-    Write-Debug $OSHT.Keys
-    Write-Debug $OSHT.Values
+#    Write-Debug $ModelsHT.Keys
+#    Write-Debug $ModelsHT.Values
+#    Write-Debug $OSHT.Keys
+#    Write-Debug $OSHT.Values
 
     $CtxData = ($ModelsHT,$OSHT)
 
@@ -208,7 +228,7 @@ function Import-Config
         [XML]$ConfigFile = Get-Content $ConfFileName
     }
     else {
-        Write-Verbose "Warning Config File not found" -Verbose
+         Write-Verbose "Warning Config File not found"  
         return $null
     }
 
@@ -218,8 +238,8 @@ function Import-Config
         $Defaults.Add($Child.Name.tolower(),$Child.InnerText.tolower())
     }
 
-    Write-Debug $Defaults.Keys
-    Write-Debug $Defaults.Values
+#    Write-Debug $Defaults.Keys
+#    Write-Debug $Defaults.Values
 
     return $Defaults
 }
@@ -252,27 +272,27 @@ function Set-DriverRepo {
     )
   
     begin {
-        Write-Verbose "Begin procesing Drivers Repo" -Verbose
+        Write-Verbose "Begin procesing Drivers Repo"  
     }
   
     process {
   
-        Write-Debug "Verify $RootRepo"
+        Write-Verbose "Verify $RootRepo"
         try {
 
             If(!(test-path $RootRepo))
             {
-                Write-Debug "Create $RootRepo"
-                New-Item -ItemType Directory -Force -Path $RootRepo
+                Write-Verbose "Create $RootRepo"
+                New-Item -ItemType Directory -Force -Path $RootRepo | out-null
             }
 
             foreach ($s in $SubFolder) {
-                Write-Debug "Processing $s"
+                Write-Verbose "Processing $s"
                 $TstSub = "$RootRepo\$s"
-                Write-Debug "Verify Directory $TstSub"
+                Write-Verbose "Verify Directory $TstSub"
                 If(!(test-path $TstSub))
                 {
-                    New-Item -ItemType Directory -Force -Path $TstSub
+                    New-Item -ItemType Directory -Force -Path $TstSub | out-null
                 }
             }
         }
@@ -286,7 +306,7 @@ function Set-DriverRepo {
       }
 
       end {
-        Write-Verbose "End procesing Driver Repo" -Verbose
+         Write-Verbose "End procesing Driver Repo"  
     }
 }
 function Import-SurfaceDrivers {
@@ -316,16 +336,17 @@ function Import-SurfaceDrivers {
     )
 
     begin {
-        Write-Verbose "Begin procesing Import-SurfaceDrivers" -Verbose
+        Write-Verbose "Begin procesing Import-SurfaceDrivers"
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
         $DefaultFromConfigFile = Import-Config
+        $status = $false
     }
   
     process {
 
         if ($SurfaceModel -eq "") {
             if ('SurfaceModel' -in $DefaultFromConfigFile.Keys) {
-                Write-Verbose "Getting SurfaceModel from Defaults in Config file" -Verbose
+                 Write-Verbose "Getting SurfaceModel from Defaults in Config file"  
                 $SurfaceModel = $DefaultFromConfigFile['SurfaceModel']
             }
             else {
@@ -334,34 +355,37 @@ function Import-SurfaceDrivers {
             }
         }
 
+        if ($SurfaceModel.ToLower() -NotIn $SurfModelHT.keys) {
+            Write-Error "Surface Model $SurfaceModel not supported by this tool"
+            return $false
+        }
+
         Write-Host "Check Drivers Repo for $SurfaceModel"
 
         If (Set-DriverRepo -RootRepo $RootRepo -SubFolders $SurfaceModel) {
-            Write-Verbose "Drivers Repo Checked and Set" -Verbose
+             Write-Verbose "Drivers Repo Checked and Set"  
         }
         else {
-            Write-Verbose "Error while checking Drivers Repo" -Verbose
+             Write-Verbose "Error while checking Drivers Repo"
+             return $false
         }
 
         if ($OVers -ne "") {
-            $RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
+            $Global:RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
+            $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel -OSTarget $OVers
         }
         else {
-            $RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel
+            $Global:RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel
+            $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel
         }
 
-        if ($OVers -ne "") {
-            $RemDrvInfo = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel -OSTarget $OVers
-        }
-        else {
-            $RemDrvInfo = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel
-        }
-
-        return $True
+#        write-debug $Global:RemDrvInfo.keys 
+#        write-debug $Global:RemDrvInfo.Values 
+        return $status
     }
 
     end {
-        Write-Verbose "End procesing Import-SurfaceDrivers" -Verbose
+         Write-Verbose "End procesing Import-SurfaceDrivers"  
     }
 }
 function Squel {
@@ -388,7 +412,7 @@ function Squel {
     )
     
     begin {
-        Write-Verbose "Begin procesing FunctionName" -Verbose
+         Write-Verbose "Begin procesing FunctionName"  
     }
   
     process {
@@ -407,7 +431,7 @@ function Squel {
     }
 
     end {
-        Write-Verbose "End procesing FunctionName" -Verbose
+         Write-Verbose "End procesing FunctionName"  
     }
 }
 
