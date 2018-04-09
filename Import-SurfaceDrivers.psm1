@@ -33,7 +33,7 @@ function Get-LocalDriversInfo {
 
         try {
 
-            foreach ($DrvHashT in $Global:RemDrvInfo) {
+            foreach ($DrvHashT in $Global:DrvInfo) {
                 $OSSub = $DrvHashT['OSVersion']
                 $LocalPathDir = "$RPath\$DrvModel\$OSSub"
                 write-verbose "Testing if $LocalPathDir exist"
@@ -43,21 +43,28 @@ function Get-LocalDriversInfo {
                         New-Item -ItemType Directory -Force -Path $LocalPathDir | out-null
                     }
                 
-                $Link = $DrvHashT['Link']
-                $SplitedLink = $Link.tolower() -split '/'
-                $FileName = $SplitedLink[$SplitedLink.count-1]
+                $FileName = $DrvHashT['FileName']
                 write-verbose "Check for $FileName"
                 $LocalPathFile = "$LocalPathDir\$FileName"
+                $DrvHashT.Add('LPath',$LocalPathDir)
 
                 If(!(test-path $LocalPathFile))
                     {
+                        $DrvHashT.Add('LatestPresent',"N")
                         write-host "$FileName is missing"
                     }
+                else
+                    {
+                        $DrvHashT.Add('LatestPresent',"Y")
+                        write-Verbose "$FileName is already downloaded"                        
+                        write-host "Driver for $OSSub found localy"                        
+                    }
                 }
+
         return $true
         }
         catch [System.Exception] {
-            Write-Error $_.Exception.Message;
+            Write-Host -ForegroundColor Red $_.Exception.Message;
             return $False
         }
 
@@ -99,7 +106,7 @@ function Get-RemoteDriversInfo {
     )
     
     begin {
-        Write-Verbose "Begin procesing Get-RemoteDriversInfo"  
+        Write-Verbose "Begin procesing Get-RemoteDriversInfo($DrvModel,$Overs)"  
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
     }
   
@@ -113,7 +120,7 @@ function Get-RemoteDriversInfo {
             if ($DrvModel -ne "") {
                 $urldrv = $SurfModelHT[$DrvModel.tolower()]
                 if ($urldrv -eq $null) {
-                    Write-Error "Unknown Surface Model for the script : [$DrvModel]"
+                    Write-Host -ForegroundColor Red "Unknown Surface Model for the script : [$DrvModel]"
                     return $false
                 }
             }
@@ -121,12 +128,12 @@ function Get-RemoteDriversInfo {
             if (($OVers -ne $null) -and ($OVers -ne "")) {
                 $InternalR = $OSReleaseHT[$OVers.tolower()]
                 if ($InternalR -eq $null) {
-                    Write-Error "Unknown OS Release for the script : [$OVers]"
+                    Write-Host -ForegroundColor Red "Unknown OS Release for the script : [$OVers]"
                     return $false
                 }
             }
 
-             Write-Verbose "Processing $urldrv"  
+            Write-Verbose "Processing $urldrv"  
 
             $DrvPage = Invoke-WebRequest -Uri $urldrv -UseBasicParsing
 
@@ -141,6 +148,7 @@ function Get-RemoteDriversInfo {
                             $FileName = $DrvPrsLst[$DrvPrsLst.count-1] -split '.msi'
                             $DriverInfo = $FileName[0] -split '_'
                             $InternalVFound = $DriverInfo[$DriverInfo.count-3]
+                            write-debug "Filename identified : $FileName"
 
                             if ($OSReleaseHT.containsValue($InternalVFound)) {
                                 $VFound = $OSReleaseHT.Keys | ForEach-Object { if ($OSReleaseHT.Item($_) -eq $InternalVFound ) {$_} }
@@ -149,36 +157,41 @@ function Get-RemoteDriversInfo {
                                 $VFound = "1507"
                             }
 
-                            $ret = $CurLst.Add($href.tolower())
-
-                             Write-Verbose "[$ret]:$href"   
-                             Write-Verbose "Found OS Version is $VFound"  
-                            if ($OVers -ne "") {
-                                 Write-Verbose "Asked OS Version is $OVers"  
-                                if ($Overs -eq $VFound) {
+                            Write-Verbose "[$ret]:$href"   
+                            Write-Verbose "Found OS Version is $VFound"
+                            if ($VFound -NotIn $CurLst) {
+                                if ($OVers -ne "") {
+                                    Write-Verbose "Asked OS Version is $OVers"  
+                                    if ($Overs -eq $VFound) {
+                                        $FoundDrvHT = @{} 
+                                        $ret = $FoundDrvHT.Add("OSVersion",$VFound)
+                                        $ret = $FoundDrvHT.Add("Link",$href.tolower())
+                                        $ret = $FoundDrvHT.Add("FileName",$DrvPrsLst[$DrvPrsLst.count-1])
+                                        $ret = $FoundDrvLst.Add($FoundDrvHT)
+                                        write-debug "Remote info for $VFound Added"
+                                    }
+                                }
+                                else {
                                     $FoundDrvHT = @{} 
                                     $ret = $FoundDrvHT.Add("OSVersion",$VFound)
                                     $ret = $FoundDrvHT.Add("Link",$href.tolower())
+                                    $ret = $FoundDrvHT.Add("FileName",$DrvPrsLst[$DrvPrsLst.count-1])
                                     $ret = $FoundDrvLst.Add($FoundDrvHT)
-                                }
+                                    write-debug "Remote info for $VFound Added"
                             }
-                            else {
-                                $FoundDrvHT = @{} 
-                                $ret = $FoundDrvHT.Add("OSVersion",$VFound)
-                                $ret = $FoundDrvHT.Add("Link",$href.tolower())
-                                $ret = $FoundDrvLst.Add($FoundDrvHT)
-                            }
+                            $ret = $CurLst.Add($VFound)
                         }
                     }    
                 }
             }
         }
-        catch [System.Exception] {
-            Write-Error $_;
-            return $false
-        }
+    }
+    catch [System.Exception] {
+        Write-Host -ForegroundColor Red $_;
+        return $false
+    }
 
-        return $FoundDrvLst
+    return $FoundDrvLst
     }
 
     end {
@@ -211,11 +224,6 @@ function Import-SurfaceDB
                 $OSHT.Add($Child.ReleaseCode.tolower(),$Child.InternalCode.tolower())
         }
 
-#    Write-Debug $ModelsHT.Keys
-#    Write-Debug $ModelsHT.Values
-#    Write-Debug $OSHT.Keys
-#    Write-Debug $OSHT.Values
-
     $CtxData = ($ModelsHT,$OSHT)
 
     return $CtxData
@@ -237,9 +245,6 @@ function Import-Config
     foreach ($Child in $ConfigFile.Config.Defaults.ChildNodes ) {
         $Defaults.Add($Child.Name.tolower(),$Child.InnerText.tolower())
     }
-
-#    Write-Debug $Defaults.Keys
-#    Write-Debug $Defaults.Values
 
     return $Defaults
 }
@@ -297,7 +302,7 @@ function Set-DriverRepo {
             }
         }
         catch [System.Exception] {
-            Write-Error $_.Exception.Message;
+            Write-Host -ForegroundColor Red $_.Exception.Message;
             return $False
         }
 
@@ -307,6 +312,150 @@ function Set-DriverRepo {
 
       end {
          Write-Verbose "End procesing Driver Repo"  
+    }
+}
+function Get-MSIFile {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('Link')]
+        [string]$url
+        ,
+        [Alias('LPath')]
+        [string]$targetFile
+    )
+    
+    begin {
+         Write-Verbose "Begin procesing Get-MSIFile"  
+    }
+  
+    process {
+
+        try {
+
+            $uri = New-Object "System.Uri" "$url" 
+            $request = [System.Net.HttpWebRequest]::Create($uri) 
+            $request.set_Timeout(15000) #15 second timeout 
+            $response = $request.GetResponse() 
+            $totalLength = [System.Math]::Floor($response.get_ContentLength()/1024) 
+            $responseStream = $response.GetResponseStream() 
+            $targetStream = New-Object -TypeName System.IO.FileStream -ArgumentList $targetFile, Create 
+            $buffer = new-object byte[] 10KB 
+            $count = $responseStream.Read($buffer,0,$buffer.length) 
+            $downloadedBytes = $count 
+
+            while ($count -gt 0) 
+            { 
+                $Downloaded = [System.Math]::Floor($downloadedBytes/1024)
+                $PercentD = [math]::Round((100/$totalLength)*$Downloaded)
+                if ($PercentD -gt 100) {$PercentD = 100}
+                Write-Progress -Activity "Download MSI" -Status "$Downloaded K Downloaded:" -PercentComplete $PercentD
+                $targetStream.Write($buffer, 0, $count) 
+                $count = $responseStream.Read($buffer,0,$buffer.length) 
+                $downloadedBytes = $downloadedBytes + $count 
+            } 
+            $targetStream.Flush()
+            $targetStream.Close() 
+            $targetStream.Dispose() 
+            $responseStream.Dispose() 
+
+        }
+        catch [System.Exception] {
+
+            Write-Host -ForegroundColor Red $_.Exception.Message;
+            return $False
+        }
+
+    }
+
+    end {
+         Write-Verbose "End procesing Get-MSIFile"  
+    }
+}
+
+function Get-SurfaceDriver {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('Apply')]
+        [Boolean]$ApplyDRv = $false
+    )
+    
+    begin {
+         Write-Verbose "Begin procesing Get-SurfaceDriver"  
+    }
+  
+    process {
+
+        try {
+
+            foreach ($DrvHashT in $Global:DrvInfo) {
+                if ($DrvHashT["LatestPresent"] -eq "N") {
+                    $Link = $DrvHashT['Link']
+                    $FileName = $DrvHashT['FileName']
+                    $LPath = $DrvHashT['LPath']
+                    Write-Verbose "Will load $FileName"
+                    Write-Verbose "From $Link"
+                    Write-Verbose "To $LPath"
+
+                    $Dir = get-childitem $LPath
+                    $ListExistMSI = $Dir | where-object {$_.extension -eq ".msi"}
+                    if ($ListExistMSI.count -ne 0) {
+                        foreach ($msifile in $ListExistMSI) {
+                            $MsiToRemove = "$LPath\$msifile"
+                            Remove-Item $MsiToRemove
+                        }
+                    }
+
+                    #download the Msi file
+                    $Strt = Get-Date
+                    $TagetLPath = "$LPath\$FileName"
+                    Write-Host "Start Downloading .................... $FileName"
+                    Get-MSIFile -Link $Link -LPath $TagetLPath
+                    $End = Get-Date
+                    $Span = New-TimeSpan -Start $Strt -End $End
+                    $Min = $Span.Minutes
+                    $Sec = $Span.Seconds
+
+                    Write-Host "Downloaded in $Min Min and $Sec Seconds"
+                }
+            }
+
+        }
+        catch [System.Exception] {
+            Write-Host -ForegroundColor Red $_.Exception.Message;
+            return $False
+        }
+
+        return
+    }
+
+    end {
+         Write-Verbose "End procesing Get-SurfaceDriver"  
     }
 }
 function Import-SurfaceDrivers {
@@ -333,6 +482,15 @@ function Import-SurfaceDrivers {
         ,
         [Alias('Root')]
         [string]$RootRepo = '.\Repo'   
+        ,
+        [Alias('Apply')]
+        [Boolean]$ApplyDRv = $false
+        ,
+        [Alias('Force')]
+        [Boolean]$ForceApplyDRv = $false
+        ,
+        [Alias('CheckOnly')]
+        [Boolean]$CheckOnlyDrv = $false  
     )
 
     begin {
@@ -346,17 +504,17 @@ function Import-SurfaceDrivers {
 
         if ($SurfaceModel -eq "") {
             if ('SurfaceModel' -in $DefaultFromConfigFile.Keys) {
-                 Write-Verbose "Getting SurfaceModel from Defaults in Config file"  
+                Write-Verbose "Getting SurfaceModel from Defaults in Config file"  
                 $SurfaceModel = $DefaultFromConfigFile['SurfaceModel']
             }
             else {
-                Write-Error "Surface Model need to be specified in Input or in the Config file"
+                Write-Host -ForegroundColor Red "Surface Model need to be specified in Input or in the Config file"
                 return $false
             }
         }
 
         if ($SurfaceModel.ToLower() -NotIn $SurfModelHT.keys) {
-            Write-Error "Surface Model $SurfaceModel not supported by this tool"
+            Write-Host -ForegroundColor Red "Surface Model $SurfaceModel not supported by this tool"
             return $false
         }
 
@@ -371,17 +529,24 @@ function Import-SurfaceDrivers {
         }
 
         if ($OVers -ne "") {
-            $Global:RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
+            $Global:DrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
+            if ($Global:DrvInfo -eq $null) {
+                Write-Host -ForegroundColor Red "   Drivers not found for $OVers"
+                return $false
+            }
             $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel -OSTarget $OVers
         }
         else {
-            $Global:RemDrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel
+            $Global:DrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel
             $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel
         }
 
-#        write-debug $Global:RemDrvInfo.keys 
-#        write-debug $Global:RemDrvInfo.Values 
-        return $status
+        if ($CheckOnlyDrv -ne $True) {
+
+            Get-SurfaceDriver -Apply $ApplyDRv
+
+        }
+        return $True
     }
 
     end {
@@ -423,11 +588,10 @@ function Squel {
 
         }
         catch [System.Exception] {
-            Write-Error $_.Exception.Message;
+            Write-Host -ForegroundColor Red $_.Exception.Message;
             return $False
         }
 
-        return $True
     }
 
     end {
@@ -435,15 +599,13 @@ function Squel {
     }
 }
 
-
-
 $ModuleName = "Import-SurfaceDriver"
-Write-Host "Loading $ModuleName Module"
+Write-Verbose "Loading $ModuleName Module"
 
-Export-ModuleMember -Function Import-SurfaceDrivers
+Export-ModuleMember -Function Import-SurfaceDrivers,Import-SurfaceDB,Import-Config
 
 $ThisModule = $MyInvocation.MyCommand.ScriptBlock.Module
-$ThisModule.OnRemove = { Write-Host "Module $ModuleName Unloaded" }
+$ThisModule.OnRemove = { Write-Verbose "Module $ModuleName Unloaded" }
 
 
 

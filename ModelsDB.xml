@@ -48,12 +48,6 @@
             <OS MinSupported=''>
             </OS>
         </Surface>
-        <Surface ID='Surface Hub'>
-            <Drivers url=''>
-            </Drivers>
-            <OS MinSupported=''>
-            </OS>
-        </Surface>
     </SurfacesModels>
     <OSRelease>
         <TH1 ReleaseCode='1507' internalCode=''></TH1>
