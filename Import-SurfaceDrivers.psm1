@@ -314,6 +314,52 @@ function Set-DriverRepo {
          Write-Verbose "End procesing Driver Repo"  
     }
 }
+function Install-MSI{  
+
+    begin {
+         Write-Verbose "Begin procesing Install-MSI"  
+    }
+  
+    process {
+
+        try {
+
+            foreach ($DrvHashT in $Global:DrvInfo) {
+
+                $SMsiPath = $DrvHashT['LPath']
+                $SMsiFile = $DrvHashT['FileName']
+                $SMsiFull = "$SMsiPath\$SMsiFile"
+                $TMsiFile = "$env:TEMP\SDrivers.msi"
+
+                Copy-Item $SMsiFull -Destination $TMsiFile -Force
+
+                $Arguments = @()
+                $Arguments += "/i"
+                $Arguments += "$TMsiFile"
+                $Arguments += "/qn"
+                $Arguments += "/log c:\Temp\InstalSD.log"
+                
+                Write-Host "Applying MSI $MsiFile to the Machine"
+                Write-Host "Be careful, a reboot could happen ..."
+                Write-Verbose "Applying MSI Command : MSIEXEC $Arguments"
+                Start-Process "msiexec.exe" -ArgumentList $Arguments -Wait
+                Write-Host "done"
+            }
+
+        }
+        catch [System.Exception] {
+
+            Write-Host -ForegroundColor Red $_.Exception.Message;
+            return $False
+        }
+
+    }
+
+    end {
+         Write-Verbose "End procesing Install-MSI"  
+    }
+}
+
 function Get-MSIFile {
     <#
     .SYNOPSIS
@@ -463,7 +509,7 @@ function Import-SurfaceDrivers {
     .SYNOPSIS
     TODO
     .DESCRIPTION
-    TODO
+    Function to import Surface Drivers
     .EXAMPLE
     TODO
     .EXAMPLE
@@ -514,11 +560,16 @@ function Import-SurfaceDrivers {
         }
 
         if ($SurfaceModel.ToLower() -NotIn $SurfModelHT.keys) {
-            Write-Host -ForegroundColor Red "Surface Model $SurfaceModel not supported by this tool"
+                Write-Host -ForegroundColor Red "Surface Model $SurfaceModel not supported by this tool"
             return $false
         }
 
-        Write-Host "Check Drivers Repo for $SurfaceModel"
+        if ($OVers -ne "") {
+            Write-Host "Check Drivers Repo for $SurfaceModel for Windows $OVers"
+        }
+        else {
+            Write-Host "Check Drivers Repo for $SurfaceModel"            
+        }
 
         If (Set-DriverRepo -RootRepo $RootRepo -SubFolders $SurfaceModel) {
              Write-Verbose "Drivers Repo Checked and Set"  
@@ -531,21 +582,57 @@ function Import-SurfaceDrivers {
         if ($OVers -ne "") {
             $Global:DrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
             if ($Global:DrvInfo -eq $null) {
-                Write-Host -ForegroundColor Red "   Drivers not found for $OVers"
+                Write-Host ">>>   Drivers not found for $OVers"
                 return $false
             }
             $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel -OSTarget $OVers
         }
         else {
             $Global:DrvInfo = Get-RemoteDriversInfo -DrvModel $SurfaceModel
+            if ($Global:DrvInfo -eq $null) {
+                Write-Host -ForegroundColor Red "   No Drivers found "
+                return $false
+            }
             $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel
+        }
+
+        if ($ApplyDRv -eq $True) {
+            #Trim $Global:DrvInfo to the latest Driver only
+            $intver=0
+            $i=0
+            #Search the highest Version number
+            foreach ($DrvHashT in $Global:DrvInfo) {
+                $curintver = [convert]::ToInt32($DrvHashT['OSVersion'], 10)
+                if($curintver -gt $intver) {
+                    $HT = $DrvHashT
+                    $intver = $curintver
+                }
+                $i = $i + 1
+            }
+            if ($intver -ne 0 ) {
+                write-verbose "Found $intver as the latest version available"
+                $Global:DrvInfo = $HT
+            }
         }
 
         if ($CheckOnlyDrv -ne $True) {
 
             Get-SurfaceDriver -Apply $ApplyDRv
+            if ($ApplyDRv -eq $True) {
 
+                $Strt = Get-Date
+                #Apply the MSI remaining in the $Global:DrvInfo
+                Install-MSI
+                $End = Get-Date
+                $Span = New-TimeSpan -Start $Strt -End $End
+                $Min = $Span.Minutes
+                $Sec = $Span.Seconds
+
+                Write-Host "Installed in $Min Min and $Sec Seconds"
+            }
+    
         }
+
         return $True
     }
 

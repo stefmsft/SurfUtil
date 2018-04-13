@@ -27,6 +27,12 @@ try {
     elseif ($MachineModel -eq "Surface_Pro_3") {
         $SurfaceModel = "Surface Pro3"
     }
+    elseif ($MachineModel -eq "Surface_Studio") {
+        $SurfaceModel = "Surface Studio"
+    }
+    elseif ($MachineModel -eq "Surface_Laptop") {
+        $SurfaceModel = "Surface Laptop"
+    }
 
     $DefaultFromConfigFile = Import-Config
     
@@ -49,7 +55,8 @@ try {
 
     $ret = Import-SurfaceDrivers -Model $SurfaceModel -OSTarget $os -Root $LocalRepoPathDir
     if ($ret -eq $False) {
-        $ret = Import-SurfaceDrivers -Model $SurfaceModel -Root $LocalRepoPathDir
+        Write-Host "No Drivers found for the current OS ... Looking for previous versions"
+        $ret = Import-SurfaceDrivers -Model $SurfaceModel -Root $LocalRepoPathDir -Apply $True
     }
 
 }
