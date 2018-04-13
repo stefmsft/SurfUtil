@@ -25,7 +25,7 @@ function Get-LocalDriversInfo {
     )
     
     begin {
-         Write-Verbose "Begin procesing Get-LocalDriversInfo"  
+         Write-Verbose "Begin procesing Get-LocalDriversInfo(Repo=$RPath,Model=$DrvModel,OSVersion=$OVers)"  
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
    }
   
@@ -106,7 +106,7 @@ function Get-RemoteDriversInfo {
     )
     
     begin {
-        Write-Verbose "Begin procesing Get-RemoteDriversInfo($DrvModel,$Overs)"  
+        Write-Verbose "Begin procesing Get-RemoteDriversInfo(Model=$DrvModel,OSVersion=$Overs)"  
         ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
     }
   
@@ -210,7 +210,7 @@ function Import-SurfaceDB
 
         }
     
-        $ModelsHT = @{}                                 # empty models hashtable   
+        $ModelsHT = @{}   # empty models hashtable   
 
         foreach ($Child in $ModelDBFile.ModelsDB.SurfacesModels.ChildNodes ) {
 
@@ -255,14 +255,14 @@ function Set-DriverRepo {
     .DESCRIPTION
     The function will check if the directories exists and if not it will create them
     .EXAMPLE
-    Set-DriverRepo -Root '.\MyRoot' -SubFolders ('Surface Book','Surface Book 2')
+    Set-DriverRepo -Root '.\MyRoot' -Model ('Surface Book','Surface Book 2')
     To set a Sub Folders structure with a root MyRoot and holding 2 Subfolders for 2 models of Surface
     .EXAMPLE
     Set-DriverRepo
     To user the function with the defaults
     .PARAMETER Root
     The Root of the Drivers Repo
-    .PARAMETER SubFolders
+    .PARAMETER Model
     The list of Subfolders under the root. Each one will match a Surface Model
     #>
     [CmdletBinding()]
@@ -272,12 +272,13 @@ function Set-DriverRepo {
         [Alias('Root')]
         [string]$RootRepo
         ,
-        [Alias('SubFolders')]
-        [string[]]$SubFolder = ('Surface Book','Surface Book 2','Surface Pro','Surface Laptop','Surface Studio','Surface Pro4','Surface Pro3')
+        [Parameter(mandatory=$true)]
+        [Alias('Model')]
+        [string[]]$SubFolder
     )
   
     begin {
-        Write-Verbose "Begin procesing Drivers Repo"  
+        Write-Verbose "Begin procesing Set-DriverRepo(Root=$RootRepo,Model=$SubFolder)"  
     }
   
     process {
@@ -380,24 +381,31 @@ function Get-MSIFile {
         [string]$url
         ,
         [Alias('LPath')]
+        [string]$targetPath
+        ,
+        [Alias('File')]
         [string]$targetFile
     )
     
     begin {
-         Write-Verbose "Begin procesing Get-MSIFile"  
+         Write-Verbose "Begin procesing Get-MSIFile(Link=$url,LPath=$TargetPath,File=$targetFile)"  
     }
   
     process {
 
         try {
 
+            $FullTP = resolve-path $TargetPath
+            $FulltargetFile = "$FullTP\$TargetFile"
+            write-host $FulltargetFile
+
             $uri = New-Object "System.Uri" "$url" 
             $request = [System.Net.HttpWebRequest]::Create($uri) 
             $request.set_Timeout(15000) #15 second timeout 
-            $response = $request.GetResponse() 
+            $response = $request.GetResponse()
             $totalLength = [System.Math]::Floor($response.get_ContentLength()/1024) 
             $responseStream = $response.GetResponseStream() 
-            $targetStream = New-Object -TypeName System.IO.FileStream -ArgumentList $targetFile, Create 
+            $targetStream = New-Object -TypeName System.IO.FileStream -ArgumentList $FulltargetFile, Create 
             $buffer = new-object byte[] 10KB 
             $count = $responseStream.Read($buffer,0,$buffer.length) 
             $downloadedBytes = $count 
@@ -452,7 +460,7 @@ function Get-SurfaceDriver {
     )
     
     begin {
-         Write-Verbose "Begin procesing Get-SurfaceDriver"  
+         Write-Verbose "Begin procesing Get-SurfaceDriver(Apply=$ApplyDrv)"  
     }
   
     process {
@@ -479,9 +487,9 @@ function Get-SurfaceDriver {
 
                     #download the Msi file
                     $Strt = Get-Date
-                    $TagetLPath = "$LPath\$FileName"
+                    #$TagetLPath = "$LPath\$FileName"
                     Write-Host "Start Downloading .................... $FileName"
-                    Get-MSIFile -Link $Link -LPath $TagetLPath
+                    Get-MSIFile -Link $Link -LPath $LPath -File $FileName
                     $End = Get-Date
                     $Span = New-TimeSpan -Start $Strt -End $End
                     $Min = $Span.Minutes
@@ -530,13 +538,13 @@ function Import-SurfaceDrivers {
         [string]$RootRepo = '.\Repo'   
         ,
         [Alias('Apply')]
-        [Boolean]$ApplyDRv = $false
+        [Boolean]$ApplyDRv = $False
         ,
         [Alias('Force')]
-        [Boolean]$ForceApplyDRv = $false
+        [Boolean]$ForceApplyDRv = $False
         ,
         [Alias('CheckOnly')]
-        [Boolean]$CheckOnlyDrv = $false  
+        [Boolean]$CheckOnlyDrv = $False  
     )
 
     begin {
@@ -571,7 +579,7 @@ function Import-SurfaceDrivers {
             Write-Host "Check Drivers Repo for $SurfaceModel"            
         }
 
-        If (Set-DriverRepo -RootRepo $RootRepo -SubFolders $SurfaceModel) {
+        If (Set-DriverRepo -RootRepo $RootRepo -Model $SurfaceModel) {
              Write-Verbose "Drivers Repo Checked and Set"  
         }
         else {
