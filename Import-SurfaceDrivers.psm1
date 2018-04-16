@@ -201,7 +201,7 @@ function Get-RemoteDriversInfo {
 function Import-SurfaceDB
     {
 
-        $DBFileName = ".\ModelsDB.xml"
+        $DBFileName = "$PSScriptRoot\ModelsDB.xml"
         If(test-path $DBFileName) {
             [XML]$ModelDBFile = Get-Content $DBFileName
         }
@@ -231,7 +231,7 @@ function Import-SurfaceDB
 function Import-Config
     {
 
-    $ConfFileName = ".\Config.xml"
+    $ConfFileName = "$PSScriptRoot\Config.xml"
     If(test-path $ConfFileName) {
         [XML]$ConfigFile = Get-Content $ConfFileName
     }
