@@ -637,6 +637,7 @@ function Import-SurfaceDrivers {
                 $Min = $Span.Minutes
                 $Sec = $Span.Seconds
 
+                
                 Write-Host "Installed in $Min Min and $Sec Seconds"
             }
     
