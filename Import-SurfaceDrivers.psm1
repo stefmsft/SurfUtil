@@ -331,20 +331,21 @@ function Install-MSI{
                 $SMsiFile = $DrvHashT['FileName']
                 $SMsiFull = "$SMsiPath\$SMsiFile"
                 $TMsiFile = "$env:TEMP\SDrivers.msi"
+                $TLogFile = "$env:TEMP\SDrivers.log"
 
                 Copy-Item $SMsiFull -Destination $TMsiFile -Force
 
                 $Arguments = @()
                 $Arguments += "/i"
                 $Arguments += "$TMsiFile"
-                $Arguments += "/qn"
-                $Arguments += "/log c:\Temp\InstalSD.log"
+                $Arguments += "/qn /norestart"
+                $Arguments += "/log $TLogFile"
                 
                 Write-Host "Applying MSI $MsiFile to the Machine"
-                Write-Host "Be careful, a reboot could happen ..."
                 Write-Verbose "Applying MSI Command : MSIEXEC $Arguments"
                 Start-Process "msiexec.exe" -ArgumentList $Arguments -Wait
                 Write-Host "done"
+                Write-Host "Reboot have been blocked, so you might want to reboot your Surface yourself"
             }
 
         }
