@@ -84,6 +84,11 @@ All the Microsoft Surface TSP/GBB are welcome to contribute directly to the inte
 
 External contributor are welcome to submit me pull requests as well. 
 
+# Known Issue
+
+- Download time is slow due to the API used for assynchronous method (progress bar) - This will be addressed after feature completion (Work Item : 1)
+- The download logic need to be fix when -Apply $True parameter is used. Today it downloads all Target Version OS before applying the latest.
+
 # History and thanks
 This project started with 2 influences
 
