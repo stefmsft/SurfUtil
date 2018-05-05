@@ -5,3 +5,5 @@ InstalSD.log
 sample-*
 .vscode
 launch.json
+*.iso
+*.wim
