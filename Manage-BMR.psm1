@@ -406,7 +406,7 @@ public class ISOFile
             if ($VerbosePreference -eq "Continue") {
 
                 foreach ($j in $JbLst){
-                    Receive-Job $jget-it    
+                    Receive-Job $j    
                 }
             }
 
@@ -460,7 +460,7 @@ public class ISOFile
                 [String]$ExptWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install_serviced.wim')
                 $Ret = Export-WindowsImage -SourceImagePath $MntWimFile -SourceIndex $WimIndx -DestinationImagePath $ExptWimFile -DestinationName "BMR" -ScratchDirectory $ScrtchDir -LogPath $LogPath
 
-                [String]$FinalSwmFile = (Join-Path -Path ($MountedLetter + ":") -ChildPath '\sources\install.swm')
+                [String]$FinalSwmFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\install.swm')
                 $ret = Split-WindowsImage -FileSize 3500 -ImagePath $ExptWimFile -SplitImagePath $FinalSwmFile -CheckIntegrity -ScratchDirectory $ScrtchDir
 
             }
@@ -471,7 +471,7 @@ public class ISOFile
 
             # Generate ISO file
             #TBD Generate nice names 
-            Get-ChildItem ($MountedLetter + ":\") | New-IsoFile -Media 'DVDPLUSR' -Title "BMR"
+#            Get-ChildItem ($Drv + ":\") | New-IsoFile -Media 'DVDPLUSR_DUALLAYER' -Title "BMR" -Path ".\BMR.iso" -Force
 
             return $true
 

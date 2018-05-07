@@ -34,8 +34,9 @@ function Get-LocalDriversInfo {
         try {
 
             # Verify if DrvInfo is empty ... Would mean no internet connexion during the online check
-            if ($Global:DrvInfo.count -eq 0) {
+            if ($Global:CacheMode -eq $true) {
 
+                    write-verbose "Cache mode processing for local drivers info"
                     $intver=0
                     #Search the highest Version number
                     foreach ($Release in $OSReleaseHT.keys) {
@@ -55,14 +56,21 @@ function Get-LocalDriversInfo {
                     }
 
                 $lpathtocheck = "$RPAth\$DrvModel\$Overs"
-                $lpathtocheck = (Get-Item -Path $lpathtocheck -Verbose).FullName
+                $lpathtocheck = (Get-Item -Path $lpathtocheck).FullName
 
 
                 $Dir = get-childitem $lpathtocheck
                 $ListExistMSI = $Dir | where-object {$_.extension -eq ".msi"}
                 if ($ListExistMSI.count -ne 0) {
                     foreach ($msifile in $ListExistMSI) {
-                        $LocalMsi = "$lpathtocheck\$msifile"
+                        $FoundDrvHT = @{} 
+                        $ret = $FoundDrvHT.Add("OSVersion",$Overs)
+                        $ret = $FoundDrvHT.Add("LPath",$lpathtocheck)
+                        $ret = $FoundDrvHT.Add("FileName",$msifile)
+                        $ret = $FoundDrvHT.Add('LatestPresent',"Y")
+                        $ret = $Global:DrvInfo.Add($FoundDrvHT)
+                        write-debug "Inject a local ref inside of DrvInfo"
+                        break
                     }
                 } else {
 
@@ -71,14 +79,6 @@ function Get-LocalDriversInfo {
         
                 }
 
-                write-host "Cache mode enabled"
-                $FoundDrvHT = @{} 
-                $ret = $FoundDrvHT.Add("OSVersion",$Overs)
-                $ret = $FoundDrvHT.Add("LPath",$lpathtocheck)
-                $ret = $FoundDrvHT.Add("FileName",$msifile)
-                $ret = $FoundDrvHT.Add('LatestPresent',"Y")
-                $ret = $Global:DrvInfo.Add($FoundDrvHT)
-                write-debug "Infect a local ref inside of DrvInfo"
 
             } else {
                 foreach ($DrvHashT in $Global:DrvInfo) {
@@ -197,12 +197,12 @@ function Get-RemoteDriversInfo {
             try {
 
                 $DrvPage = Invoke-WebRequest -Uri $urldrv -UseBasicParsing
-#                return $FoundDrvLst
 
             }
             catch [System.Exception] {
                 Write-Host "Internet Drivers Site unreachable : Cache mode enabled"
-                return $FoundDrvLst
+                $Global:CacheMode = $true
+                return $false
             }
         
             foreach ($link in $DrvPage.Links) {
@@ -210,20 +210,20 @@ function Get-RemoteDriversInfo {
                 $href = $link.href
                 if ($href -ne $null) {
                     if ($href -like "*win10*.msi" ) {
-                        if ($href.tolower() -notin $CurLst) {
+                        $DrvPrsLst = $href.tolower() -split '/'
+                        $FileName = $DrvPrsLst[$DrvPrsLst.count-1] -split '.msi'
+                        $DriverInfo = $FileName[0] -split '_'
+                        $InternalVFound = $DriverInfo[$DriverInfo.count-3]
+                        write-debug "Filename identified : $FileName"
 
-                            $DrvPrsLst = $href.tolower() -split '/'
-                            $FileName = $DrvPrsLst[$DrvPrsLst.count-1] -split '.msi'
-                            $DriverInfo = $FileName[0] -split '_'
-                            $InternalVFound = $DriverInfo[$DriverInfo.count-3]
-                            write-debug "Filename identified : $FileName"
+                        if ($OSReleaseHT.containsValue($InternalVFound)) {
+                            $VFound = $OSReleaseHT.Keys | ForEach-Object { if ($OSReleaseHT.Item($_) -eq $InternalVFound ) {$_} }
+                        }
+                        else {
+                            $VFound = "1507"
+                        }
 
-                            if ($OSReleaseHT.containsValue($InternalVFound)) {
-                                $VFound = $OSReleaseHT.Keys | ForEach-Object { if ($OSReleaseHT.Item($_) -eq $InternalVFound ) {$_} }
-                            }
-                            else {
-                                $VFound = "1507"
-                            }
+                        if ($VFound -notin $CurLst) {
 
                             Write-Verbose "[$ret]:$href"   
                             Write-Verbose "Found OS Version is $VFound"
@@ -249,7 +249,8 @@ function Get-RemoteDriversInfo {
                             }
                             $ret = $CurLst.Add($VFound)
                         }
-                    }    
+                    }
+                    else { write-verbose "Url skipped : Already in our list"}    
                 }
             }
         }
@@ -259,7 +260,7 @@ function Get-RemoteDriversInfo {
         return $false
     }
 
-    return
+    return $true
     }
 
     end {
@@ -727,6 +728,7 @@ function Import-SurfaceDrivers {
         }
 
         [System.Collections.ArrayList]$Global:DrvInfo = @()
+        $Global:CacheMode = $False
 
         # Gather Online drivers Pack reference (Details + urls in a hash table [$Global:DrvInfo])
         # Then if any exist (should always be true), we gather the local picture of the Repo

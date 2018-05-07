@@ -1,4 +1,4 @@
-Param([string]$WindowsEdition, [int]$WindowsVersion=1709, [string]$SurfaceModel,[string]$PathToISO,[String]$Drive,[String]$DrvRepo)
+Param([string]$WindowsEdition, [int]$WindowsVersion, [string]$SurfaceModel,[string]$PathToISO,[String]$Drive,[String]$DrvRepo)
 
 Import-Module "$PSScriptRoot\Manage-BMR.psm1" -force
 
