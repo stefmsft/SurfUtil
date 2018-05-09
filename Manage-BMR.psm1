@@ -127,12 +127,15 @@ public class ISOFile
         [Alias('DrvRepo')]
         [string]$DriverRepo
         ,
+        [Alias('MkIso')]
+        [string]$MakeISO
+        ,
         [Alias('Sku')]
-        [string]$TSku="Windows 10 Pro"
+        [string]$TSku
     )
     
     begin {
-         Write-Verbose "Begin procesing Set-USBKey($Drv,$Src,$SurfaceModel,$TargetedOS,$DriverRepo,$TSku)"
+         Write-Verbose "Begin procesing Set-USBKey($Drv,$Src,$SurfaceModel,$TargetedOS,$DriverRepo,MakeISO=$MakeISO,$TSku)"
     }
   
     process {
@@ -249,11 +252,13 @@ public class ISOFile
             write-host "    1 - Format the target and copy windows files"
             write-host "    2 - Prepare the Wim File"
             write-host "    3 - Inject Surface Drivers"
-            write-host "    4 - Apply latest Windows Update"
-            write-host "    5 - Copy the wim to the Key"
+#            write-host "    4 - Apply latest Windows Update"
+            write-host "    5 - Optimize and copy the wim to the Key"
+            if ($MakeISO -eq $True) {write-host "    6 - Generate an ISO copy of your USB Key"}
             write-host ""
             write-host "Please, don't interrupt the script ...."
 
+            $Strt = Get-Date
             [System.Collections.ArrayList]$JbLst = @()
 
 ######
@@ -280,18 +285,14 @@ public class ISOFile
                         write-host "Copying files....."
                         Copy-Item -Path ($MISO+":\*") -Destination ($TDrv+":\") -Exclude oinstall.wim, install.wim, *.swm -Force -Recurse
     
-                        #Write tag file on completion
-                        $ModelTag = $SurfaceModel.Replace(" ","")
-                        $TagFileName = $TDrv+":\$ModelTag-$TOS.tag"
-                        Write-Host "Tagging with file $TagFileName"
-    
-                        New-Item $TagFileName -type file
-    
                         $End = Get-Date
                         $Span = New-TimeSpan -Start $Strt -End $End
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "Format/Copy in $Min Min and $Sec Seconds"
+                        write-host "============="
+                        write-host ":: End Step 1"
+                        write-host "============="
     
                 } -ArgumentList $Drv, $MountedLetter, $SurfaceModel, $TargetedOS, $VerbosePreference
                 $ret = $JbLst.Add($JobFormatAndCopy) 
@@ -344,6 +345,9 @@ public class ISOFile
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "Wim Prepared in $Min Min and $Sec Seconds"
+                        write-host "============="
+                        write-host ":: End Step 2"
+                        write-host "============="
         
                         return $indx
                         
@@ -378,7 +382,16 @@ public class ISOFile
 
                         $ret = import-module $IDMPath
         
+                        Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -OSTarget $os -Root $LocalRepoPathDir -Expand $True"
                         $ret = Import-SurfaceDrivers -Model $Model -OSTarget $os -Root $LocalRepoPathDir -Expand $True
+
+                        #Drivers not found for the specific version on Windows. Let's try to find the latest Drivers available
+                        if ($ret -eq $False) {
+
+                            Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -Root $LocalRepoPathDir -Expand $True"
+                            $ret = Import-SurfaceDrivers -Model $Model -Root $LocalRepoPathDir -Expand $True
+
+                        }
         
                         if ($ret -eq $false) {
                             write-host "Step 3 : Operation Failed"
@@ -390,6 +403,9 @@ public class ISOFile
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "Drivers gathered in $Min Min and $Sec Seconds"    
+                        write-host "============="
+                        write-host ":: End Step 3"
+                        write-host "============="
         
                 } -ArgumentList $SurfaceModel, $TargetedOS, $DriverRepo, $mp, $VerbosePreference
 
@@ -443,6 +459,9 @@ public class ISOFile
                 } else {
                     Add-WindowsDriver -Path $MntDir -Driver $DrvExpandRoot -Recurse -LogPath $LogPath | Out-Null
                     Write-Host "Drivers injected in the new Wim"
+                    write-verbose "Add the Driver Readme.txt to the USB Key"
+                    $ReadMe = "$DrvExpandRoot\ReadMe.txt"
+                    Copy-Item -Path $ReadMe -Destination ($Drv+":\ReadMe.txt")
                 }
 
                 ## Unmount and save servicing changes to the image
@@ -455,14 +474,22 @@ public class ISOFile
                 }
                 $WimMounted = $false
 
-                #Export the image to a more compact one
-                #TBD generate a nice name for the wim
-                [String]$ExptWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install_serviced.wim')
-                $Ret = Export-WindowsImage -SourceImagePath $MntWimFile -SourceIndex $WimIndx -DestinationImagePath $ExptWimFile -DestinationName "BMR" -ScratchDirectory $ScrtchDir -LogPath $LogPath
+                if ($Discard -eq $true) {
 
-                [String]$FinalSwmFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\install.swm')
-                $ret = Split-WindowsImage -FileSize 3500 -ImagePath $ExptWimFile -SplitImagePath $FinalSwmFile -CheckIntegrity -ScratchDirectory $ScrtchDir
+                    $CompactName = "ERROR"
+                    
+                } else {
 
+                    $CompactName = "BMR-" + $SurfaceModel.replace(" ","").toupper() + $TargetedOS
+                    #Export the image to a more compact one
+    
+                    [String]$ExptWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install_serviced.wim')
+                    $Ret = Export-WindowsImage -SourceImagePath $MntWimFile -SourceIndex $WimIndx -DestinationImagePath $ExptWimFile -DestinationName $CompactName -ScratchDirectory $ScrtchDir -LogPath $LogPath
+    
+                    [String]$FinalSwmFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\install.swm')
+                    $ret = Split-WindowsImage -FileSize 3500 -ImagePath $ExptWimFile -SplitImagePath $FinalSwmFile -CheckIntegrity -ScratchDirectory $ScrtchDir
+    
+                }
             }
 
             Write-Verbose "Dismounting $SrcISO"
@@ -471,9 +498,45 @@ public class ISOFile
 
             # Generate ISO file
             #TBD Generate nice names 
-#            Get-ChildItem ($Drv + ":\") | New-IsoFile -Media 'DVDPLUSR_DUALLAYER' -Title "BMR" -Path ".\BMR.iso" -Force
+            if (($MakeISO -eq $true) -and ($Discard -ne $true)) {
+                
+                $TCIsoName = ".\" + $CompactName + ".iso"
+                Get-ChildItem ($Drv + ":\") | New-IsoFile -Media 'DVDPLUSR_DUALLAYER' -Title $CompactName -Path $TCIsoName -Force
 
-            return $true
+            }
+
+            #Write tag file on completion
+            $TagFileName = $Drv+":\$CompactName.tag"
+            Write-Host "Tagging with file $TagFileName"
+
+            New-Item $TagFileName -type file
+    
+            $End = Get-Date
+            $Span = New-TimeSpan -Start $Strt -End $End
+            $Min = $Span.Minutes
+            $Sec = $Span.Seconds
+            
+            if ($Discard -ne $true) {
+
+                Write-Host "Your BMR is ready"
+                Write-Host "It took $Min Min and $Sec Seconds to generate it"
+                Write-Host "Next steps :"
+                Write-Host "    - Remove the USB Key"
+                Write-Host "    - Plug it on a $SurfaceModel"
+                Write-Host "    - Boot the Surface on the USB Key"
+                Write-Host ""
+                Write-Host "... You should have a reimaged Surface after 20 minutes"
+                return $true    
+            } else {
+                Write-Host "Something wrong happened"                
+                Write-Host "It took $Min Min and $Sec Seconds to process"
+                Write-Host "Check the logs"
+
+                $Global:KeepExpandedDir = $true
+                $Global:KeepDriversFile = $true
+                $Global:KeepWimDir = $true
+            }
+
 
         }
         catch [System.Exception] {
@@ -489,26 +552,38 @@ public class ISOFile
             # Check if the Wim need to be dismounted
             if ($WimMounted -eq $true) {
                 Write-Verbose "Dismounting Wim after Exception"
-                Dismount-WindowsImage -Path $MntWimFile -ScratchDirectory $ScrtchDir -LogPath $LogPath -Discard
+                Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Discard
             }
             #Do some cleaning
             Get-Job | Remove-Job
             # Cleanup the misc Temp dir except we specify to keep them for debug purpose
             if ($Global:KeepExpandedDir -ne $true) {
                 
-                #TBD Remove Expanded dir content
-
+                #Remove Expanded dir content
+                write-verbose "Removing the Expanded dir"
+                [String]$TMPDrvExpanded = (Join-Path -Path $env:TMP -ChildPath '\ExpandedMSIDir')
+                if (Test-Path $TMPDrvExpanded) {Remove-Item $TMPDrvExpanded -Force -Recurse}
+                
             }
 
             if ($Global:KeepDriversFile -ne $true) {
                 
                 #TBD Remove SDrivers files
+                write-verbose "Removing the SDrivers.log and SDrivers.msi files"
+                [String]$SDriversMsi = (Join-Path -Path $env:TMP -ChildPath '\SDrivers.msi')
+                if (Test-Path $SDriversMsi) {Remove-Item $SDriversMsi -Force}
+
+                [String]$SDriversLog = (Join-Path -Path $env:TMP -ChildPath '\SDrivers.log')
+                if (Test-Path $SDriversLog) {Remove-Item $SDriversLog -Force}
 
             }
 
             if ($Global:KeepWimDir -ne $true) {
                 
                 #TBD Remove WimDir
+                write-verbose "Removing the TMP Wim dir"
+                [String]$TMPWimDir = (Join-Path -Path $env:TMP -ChildPath '\WimDir')
+                if (Test-Path $TMPWimDir) {Remove-Item $TMPWimDir -Force -Recurse}
 
             }
 
@@ -549,13 +624,20 @@ function New-USBKey {
         ,
         [Alias('OSV')]
         [string]$TargetedOS
+        ,
+        [Alias('MakeISO')]
+        [bool]$MkIso
+        ,
+        [Alias('TargetSKU')]
+        [string]$TrgtSKU
     )
     
     begin {
-        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS)"
-        $Global:SkipJ1 = $false
-        $Global:SkipJ2 = $false
-        $Global:SkipJ3 = $false
+        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU)"
+
+        $Global:SkipJ1 = $False
+        $Global:SkipJ2 = $False
+        $Global:SkipJ3 = $False
         $Global:KeepExpandedDir = $false
         $Global:KeepDriversFile = $false
         $Global:KeepWimDir = $false
@@ -602,7 +684,7 @@ function New-USBKey {
 
             }
             
-            Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath
+            Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU
 
         }
         catch [System.Exception] {

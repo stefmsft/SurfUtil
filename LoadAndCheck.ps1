@@ -1,5 +1,5 @@
-$VerbosePreference = "SilentlyContinue"
 $VerbosePreference = "Continue"
+$VerbosePreference = "SilentlyContinue"
 
 
 $MPath = "$PSScriptRoot\Import-SurfaceDrivers.psm1"

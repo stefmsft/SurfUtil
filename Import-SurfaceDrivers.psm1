@@ -764,7 +764,9 @@ function Import-SurfaceDrivers {
             }
             if ($intver -ne 0 ) {
                 write-verbose "Found $intver as the latest version available"
-                $Global:DrvInfo = $HT
+                #reset the Driver list to one entry
+                [System.Collections.ArrayList]$Global:DrvInfo = @()
+                $ret = $Global:DrvInfo.Add($HT)
             }
         }
 
