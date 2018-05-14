@@ -382,14 +382,14 @@ public class ISOFile
 
                         $ret = import-module $IDMPath
         
-                        Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -OSTarget $os -Root $LocalRepoPathDir -Expand $True"
-                        $ret = Import-SurfaceDrivers -Model $Model -OSTarget $os -Root $LocalRepoPathDir -Expand $True
+                        Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -WindowsVersion $os -RepoPath $LocalRepoPathDir -Expand $True"
+                        $ret = Import-SurfaceDrivers -Model $Model -WindowsVersion $os -RepoPath $LocalRepoPathDir -Expand $True
 
                         #Drivers not found for the specific version on Windows. Let's try to find the latest Drivers available
                         if ($ret -eq $False) {
 
-                            Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -Root $LocalRepoPathDir -Expand $True"
-                            $ret = Import-SurfaceDrivers -Model $Model -Root $LocalRepoPathDir -Expand $True
+                            Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -RepoPath $LocalRepoPathDir -Expand $True"
+                            $ret = Import-SurfaceDrivers -Model $Model -RepoPath $LocalRepoPathDir -Expand $True
 
                         }
         
@@ -438,40 +438,44 @@ public class ISOFile
 
             if ($WimIndx -ge 0) {
 
-                ## Mount Wim
-                [String]$MntWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install.wim')
-                [String]$LogPath = (Join-Path -Path $TmpTDir -ChildPath 'DISM.log')
-                Write-Host "Mounting Image..."
-                $Ret = Mount-WindowsImage -ImagePath $MntWimFile -Index $WimIndx -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath
-                $WimMounted = $true
-
-                ## Get Wim infos
-                $ret = Get-WindowsImage -Mounted -ScratchDirectory $ScrtchDir -LogPath $LogPath | Out-String
-                Write-verbose "Mounted Image Info:`n $ret"
-
-                $Discard = $False
-
-                ## Inject Drivers
+                ## Preliminary test on the ExpandedMSIDir to avoid the useless mount of the wim after
                 [String]$DrvExpandRoot = (Join-Path -Path $env:TMP -ChildPath '\ExpandedMSIDir\SurfacePlatformInstaller')
-                If(!(test-path $DrvExpandRoot)) {
-                    write-verbose "Drivers not present ... Job 3 might have failed"
-                    $Discard = $true
-                } else {
+
+                If(test-path $DrvExpandRoot) {
+                    ## Mount Wim
+                    [String]$MntWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install.wim')
+                    [String]$LogPath = (Join-Path -Path $TmpTDir -ChildPath 'DISM.log')
+                    Write-Host "Mounting Image..."
+                    $Ret = Mount-WindowsImage -ImagePath $MntWimFile -Index $WimIndx -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath
+                    $WimMounted = $true
+
+                    ## Get Wim infos
+                    $ret = Get-WindowsImage -Mounted -ScratchDirectory $ScrtchDir -LogPath $LogPath | Out-String
+                    Write-verbose "Mounted Image Info:`n $ret"
+
+                    $Discard = $False
+
+                    ## Inject Drivers
                     Add-WindowsDriver -Path $MntDir -Driver $DrvExpandRoot -Recurse -LogPath $LogPath | Out-Null
                     Write-Host "Drivers injected in the new Wim"
                     write-verbose "Add the Driver Readme.txt to the USB Key"
                     $ReadMe = "$DrvExpandRoot\ReadMe.txt"
                     Copy-Item -Path $ReadMe -Destination ($Drv+":\ReadMe.txt")
+
+                    ## Unmount and save servicing changes to the image
+                    if ($Discard -eq $true) {
+                        Write-Host "Discard Changes and Dismounting Image..."
+                        $Ret = Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Discard
+                    } else {
+                        Write-Host "Committing Changes and Dismounting Image..."
+                        $Ret = Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Save
+                    }
+                } else {
+
+                    $Discard =$true
+
                 }
 
-                ## Unmount and save servicing changes to the image
-                if ($Discard -eq $true) {
-                    Write-Host "Discard Changes and Dismounting Image..."
-                    $Ret = Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Discard
-                } else {
-                    Write-Host "Committing Changes and Dismounting Image..."
-                    $Ret = Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Save
-                }
                 $WimMounted = $false
 
                 if ($Discard -eq $true) {
@@ -696,51 +700,6 @@ function New-USBKey {
 
     end {
          Write-Verbose "End procesing New-USBKey"
-    }
-}
-function Squel {
-    <#
-    .SYNOPSIS
-    TODO
-    .DESCRIPTION
-    TODO
-    .EXAMPLE
-    TODO
-    .EXAMPLE
-    TODO
-    .PARAMETER x
-    TODO
-    #>
-    [CmdletBinding()]
-    param
-    (
-        [Alias('param1')]
-        [string]$Param1 = 'initValue'
-        ,
-        [Alias('param2')]
-        [int]$param2 = 1
-    )
-    
-    begin {
-         Write-Verbose "Begin procesing FunctionName"  
-    }
-  
-    process {
-
-        try {
-
-            #Something
-
-        }
-        catch [System.Exception] {
-            Write-Host -ForegroundColor Red $_.Exception.Message;
-            return $False
-        }
-
-    }
-
-    end {
-         Write-Verbose "End procesing FunctionName"  
     }
 }
 

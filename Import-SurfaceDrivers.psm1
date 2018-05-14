@@ -1,16 +1,4 @@
 function Get-LocalDriversInfo {
-    <#
-    .SYNOPSIS
-    TODO
-    .DESCRIPTION
-    TODO
-    .EXAMPLE
-    TODO
-    .EXAMPLE
-    TODO
-    .PARAMETER x
-    TODO
-    #>
     [CmdletBinding()]
     param
     (
@@ -136,24 +124,6 @@ function Get-LocalDriversInfo {
     }
 }
 function Get-RemoteDriversInfo {
-    <#
-    .SYNOPSIS
-    Check Online what are the available Driver Packages for a given Model
-    and optionally ask for a OS Target version Package
-    .DESCRIPTION
-    Retun an Array containing hashtable containing OS Target and Download URL
-    No MSI are downloaded from the function
-    .EXAMPLE
-    Get-RemoteDriversInfo "Surface Book"
-    .EXAMPLE
-    Get-RemoteDriversInfo -Model "Surface Pro4"
-    .EXAMPLE
-    Get-RemoteDriversInfo -Model "Surface Pro LTE" -OSTarget 1703
-    .PARAMETER DrvModel
-    Surface Model Name
-    .PARAMETER OSTarget
-    Optional - OS Version targeted by the driver package
-    #>
     [CmdletBinding()]
     param
     (
@@ -202,6 +172,8 @@ function Get-RemoteDriversInfo {
             catch [System.Exception] {
                 Write-Host "Internet Drivers Site unreachable : Cache mode enabled"
                 $Global:CacheMode = $true
+                write-verbose "Set Cache Mode to $Global:CacheMode"
+
                 return $false
             }
         
@@ -267,9 +239,39 @@ function Get-RemoteDriversInfo {
          Write-Verbose "End procesing Get-RemoteDriversInfo"  
     }
 }
-function Import-SurfaceDB
-    {
+function Import-SurfaceDB {
+    <#
+    .SYNOPSIS
+    Helper function exported from the Import-SurfaceDrivers.psm1 module
+    This function is made available outside of the module because it can be usefull for other script or modules
 
+    .DESCRIPTION
+    This function gather informations present in the ModelsDB.xml and return 2 hash table containing the values
+    - The first hash table contains the URL where to download the driver set for each model
+    - The second one contains the Internal release numbers for each supported Windows 10 version
+
+    Be carefull to keep the ModelsDB.XML file in the same directory than the module
+
+    The structure of the XML is : 
+
+    <ModelsDB>
+        <SurfacesModels>
+            <Surface ID='Surface name'>
+                <Drivers type='msi' url='url of the download msi page'>
+                </Drivers>
+                <OS MinSupported='CodeName'>
+                </OS>
+            </Surface>
+        </SurfacesModels>
+        <OSRelease>
+            <CODENAME ReleaseCode='value' internalCode='value'></CODENAME>
+        </OSRelease>
+    </ModelsDB>
+
+    .EXAMPLE
+        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+
+    #>
         $DBFileName = "$PSScriptRoot\ModelsDB.xml"
         If(test-path $DBFileName) {
             [XML]$ModelDBFile = Get-Content $DBFileName
@@ -299,6 +301,29 @@ function Import-SurfaceDB
 }
 function Import-Config
     {
+    <#
+    .SYNOPSIS
+    Helper function exported from the Import-SurfaceDrivers.psm1 module
+    This function is made available outside of the module because it can be usefull for other script or modules
+
+    .DESCRIPTION
+    This function gather informations present in the Config.xml and return a hash table containing the values
+    The purpose of this config file is mainly to hold the default values for same function parameters
+
+    Be carefull to keep the Config.XML file in the same directory than the module
+
+    The structure of the XML is : 
+    
+    <Config>
+        <Defaults>
+            <ParameterName>value</ParameterName>
+        </Defaults>
+    </Config>
+
+    .EXAMPLE
+        $DefaultFromConfigFile = Import-Config
+
+    #>
 
     $ConfFileName = "$PSScriptRoot\Config.xml"
     If(test-path $ConfFileName) {
@@ -318,22 +343,6 @@ function Import-Config
     return $Defaults
 }
 function Set-DriverRepo {
-    <#
-    .SYNOPSIS
-    Check and Set the sub folders directories that will hold the Surface Drivers
-    .DESCRIPTION
-    The function will check if the directories exists and if not it will create them
-    .EXAMPLE
-    Set-DriverRepo -Root '.\MyRoot' -Model ('Surface Book','Surface Book 2')
-    To set a Sub Folders structure with a root MyRoot and holding 2 Subfolders for 2 models of Surface
-    .EXAMPLE
-    Set-DriverRepo
-    To user the function with the defaults
-    .PARAMETER Root
-    The Root of the Drivers Repo
-    .PARAMETER Model
-    The list of Subfolders under the root. Each one will match a Surface Model
-    #>
     [CmdletBinding()]
     param
     (
@@ -491,18 +500,6 @@ function Expand-MSI{
     }
 }
 function Get-MSIFile {
-    <#
-    .SYNOPSIS
-    TODO
-    .DESCRIPTION
-    TODO
-    .EXAMPLE
-    TODO
-    .EXAMPLE
-    TODO
-    .PARAMETER x
-    TODO
-    #>
     [CmdletBinding()]
     param
     (
@@ -569,18 +566,6 @@ function Get-MSIFile {
 }
 
 function Get-SurfaceDriver {
-    <#
-    .SYNOPSIS
-    TODO
-    .DESCRIPTION
-    TODO
-    .EXAMPLE
-    TODO
-    .EXAMPLE
-    TODO
-    .PARAMETER x
-    TODO
-    #>
     [CmdletBinding()]
     param
     (
@@ -617,7 +602,6 @@ function Get-SurfaceDriver {
 
                     #download the Msi file
                     $Strt = Get-Date
-                    #$TagetLPath = "$LPath\$FileName"
                     Write-Host "Start Downloading .................... $FileName"
                     Get-MSIFile -Link $Link -LPath $LPath -File $FileName
                     $End = Get-Date
@@ -649,39 +633,81 @@ function Get-SurfaceDriver {
 function Import-SurfaceDrivers {
     <#
     .SYNOPSIS
-    TODO
+    This is the main function exported by the ImportSurfaceDrivers.psm1 module.
+
     .DESCRIPTION
-    Function to import Surface Drivers
+    This module function allow the import of Surface Driver Set (MSI) from the official external download web site and gather them in an organized way (the repo) so it can be used later by other tools.
+    The function held some parameters allowing to apply or expand the driver set on the current machine.
+    
     .EXAMPLE
-    TODO
+    Import-SurfaceDrivers
+
+    None of the parameters are required, so when it is called like this, the Model Info and the RepoPath parameter will be fetch from the Config.xml file. If this file doesn't exists then it will fail with an explicit error.
+    Note that when -Apply or -Expand is not present and no WindowsVersion is targeted, all the available drivers set are downloaded in the local repository.
+
     .EXAMPLE
-    TODO
-    .PARAMETER x
-    TODO
+    Import-SurfaceDrivers -Model "Surface Pro3" -Expand $True
+
+    The function will fetch the Surface Pro3 drivers Set targeted for the latest Windows 10 version available online.
+    Then it will expand the content of the MSI in the directory $ENV:TMP\ExpandedMSIDir
+
+    .EXAMPLE
+    Import-SurfaceDrivers -Model "Surface Laptop" -Windowsversion 1709 -Apply $true
+
+    The function will fetch online the Surface Laptop drivers Set targeted for Windows 10 1709.
+    If the latest version is already present locally in the repo it won't donwload it.
+    Be carrefull, if no version specificaly target the asked version, the function will return an error.
+    Then it will expand the content of the MSI in the directory $ENV:TMP\ExpandedMSIDir
+
+    .PARAMETER Model
+    Surface Model targeted for the drivers
+    
+    Supported Models are :
+    - Surface Pro
+    - Surface Pro Lte
+    - Surface Laptop
+    - Surface Book 2
+    - Surface Book
+    - Surface Studio
+    - Surface Pro 4
+    - Surface Pro
+
+    .PARAMETER WindowsVersion    
+    Targeted Version of Windows 10
+    Supported value are listed in the ModelsDB.XML file.
+
+    .PARAMETER  RepoPath
+    Path of the Repo of drivers by models and by Windows version.
+    See below an exemple of the structure :
+    .\Repo
+        Surface model
+            Targeted OS Version
+                MSI File
+    
+    .PARAMETER  Apply
+    Ask to Apply the driver Set on the actual machine
+
+    .PARAMETER  Expand
+    Ask to Only expand the driver Set (Function used by the New-USB function the Manage-BMR module for instance)
+
+    .PARAMETER  CheckOnly
+    Only verify if a new download of a driver set is needed but do nothing
+
     #>
     [CmdletBinding()]
     param
     (
-        [Alias('Model')]
-        [string]$SurfaceModel
+        [string]$Model
         ,
-        [Alias('OSTarget')]
-        [string]$OVers
+        [string]$WindowsVersion
         ,
-        [Alias('Root')]
-        [string]$RootRepo = '.\Repo'   
+        [string]$RepoPath
         ,
-        [Alias('Apply')]
-        [Boolean]$ApplyDRv = $False
+        [Boolean]$Apply = $False
         ,
-        [Alias('Expand')]
-        [Boolean]$ExpandDrv = $False
+        [Boolean]$Expand = $False
         ,
-        [Alias('Force')]
-        [Boolean]$ForceApplyDRv = $False
-        ,
-        [Alias('CheckOnly')]
-        [Boolean]$CheckOnlyDrv = $False  
+        [Boolean]$CheckOnly = $False  
     )
 
     begin {
@@ -694,10 +720,10 @@ function Import-SurfaceDrivers {
     process {
 
         # Verifiy the Surface model input
-        if ($SurfaceModel -eq "") {
+        if ($Model -eq "") {
             if ('SurfaceModel' -in $DefaultFromConfigFile.Keys) {
-                Write-Verbose "Getting SurfaceModel from Defaults in Config file"  
-                $SurfaceModel = $DefaultFromConfigFile['SurfaceModel']
+                Write-Verbose "Getting Surface Model from Defaults in Config file"  
+                $Model = $DefaultFromConfigFile['SurfaceModel']
             }
             else {
                 Write-Host -ForegroundColor Red "Surface Model need to be specified in Input or in the Config file"
@@ -705,21 +731,35 @@ function Import-SurfaceDrivers {
             }
         }
 
-        if ($SurfaceModel.ToLower() -NotIn $SurfModelHT.keys) {
-                Write-Host -ForegroundColor Red "Surface Model $SurfaceModel not supported by this tool"
+        if ($Model.ToLower() -NotIn $SurfModelHT.keys) {
+                Write-Host -ForegroundColor Red "Surface Model $Model not supported by this tool"
             return $false
         }
 
+        # Verifiy the Surface model input
+        if ($RepoPath -eq "") {
+            if ('RootRepo' -in $DefaultFromConfigFile.Keys) {
+                Write-Verbose "Getting Repo path from Defaults in Config file"  
+                $Model = $DefaultFromConfigFile['RootRepo']
+            }
+            else {
+                Write-Host -ForegroundColor Red "Repo Path need to be specified in Input or in the Config file"
+                return $false
+            }
+        }
+        $RepoPath = (Get-Item -Path $RepoPath -Verbose).FullName
+
+
         # Display the target OS revision asked
-        if ($OVers -ne "") {
-            Write-Host "Check Drivers Repo for $SurfaceModel for Windows $OVers"
+        if ($WindowsVersion -ne "") {
+            Write-Host "Check Drivers Repo for $Model for Windows $WindowsVersion"
         }
         else {
-            Write-Host "Check Drivers Repo for $SurfaceModel"            
+            Write-Host "Check Drivers Repo for $Model"            
         }
 
         # Check and prepare the Repo for Model/OS Targeted
-        If (Set-DriverRepo -RootRepo $RootRepo -Model $SurfaceModel) {
+        If (Set-DriverRepo -RootRepo $RepoPath -Model $Model) {
              Write-Verbose "Drivers Repo Checked and Set"  
         }
         else {
@@ -729,20 +769,21 @@ function Import-SurfaceDrivers {
 
         [System.Collections.ArrayList]$Global:DrvInfo = @()
         $Global:CacheMode = $False
+        write-verbose "Initializing Cache Mode to $Global:CacheMode"
 
         # Gather Online drivers Pack reference (Details + urls in a hash table [$Global:DrvInfo])
         # Then if any exist (should always be true), we gather the local picture of the Repo
-        if ($OVers -ne "") {
-            $status = Get-RemoteDriversInfo -DrvModel $SurfaceModel -OSTarget $OVers
-            $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel -OSTarget $OVers
+        if ($WindowsVersion -ne "") {
+            $status = Get-RemoteDriversInfo -DrvModel $Model -OSTarget $WindowsVersion
+            $status = Get-LocalDriversInfo -RootRepo $RepoPath -DrvModel $Model -OSTarget $WindowsVersion
             if ($Global:DrvInfo.Count -eq 0) {
-                Write-Host ">>>   Drivers not found for $OVers"
+                Write-Host ">>>   Drivers not found for $WindowsVersion"
                 return $false
             }
         }
         else {
-            $status = Get-RemoteDriversInfo -DrvModel $SurfaceModel
-            $status = Get-LocalDriversInfo -RootRepo $RootRepo -DrvModel $SurfaceModel
+            $status = Get-RemoteDriversInfo -DrvModel $Model
+            $status = Get-LocalDriversInfo -RootRepo $RepoPath -DrvModel $Model
             if ($Global:DrvInfo.Count -eq 0) {
                 Write-Host -ForegroundColor Red "   No Drivers found "
                 return $false
@@ -750,7 +791,7 @@ function Import-SurfaceDrivers {
         }
 
         # If Apply is asked we only need the latest driver version
-        if ((($ApplyDRv -eq $True) -or ($ExpandDRv -eq $True)) -and ($Global:DrvInfo.count -gt 1)) {
+        if ((($Apply -eq $True) -or ($Expand -eq $True)) -and ($Global:DrvInfo.count -gt 1)) {
             #Trim $Global:DrvInfo to the latest Driver only
             write-verbose "Trim on multiple drivers Found"
             $intver=0
@@ -766,14 +807,14 @@ function Import-SurfaceDrivers {
                 write-verbose "Found $intver as the latest version available"
                 #reset the Driver list to one entry
                 [System.Collections.ArrayList]$Global:DrvInfo = @()
-                $ret = $Global:DrvInfo.Add($HT)
+                $Global:DrvInfo.Add($HT) | Out-Null
             }
         }
 
-        if ($CheckOnlyDrv -ne $True) {
+        if ($CheckOnly -ne $True) {
 
-            Get-SurfaceDriver -Apply $ApplyDRv
-            if ($ApplyDRv -eq $True) {
+            Get-SurfaceDriver -Apply $Apply
+            if ($Apply -eq $True) {
 
                 $Strt = Get-Date
                 #Apply the MSI remaining in the $Global:DrvInfo
@@ -785,7 +826,7 @@ function Import-SurfaceDrivers {
                 
                 Write-Host "Installed in $Min Min and $Sec Seconds"
             } else {
-                if ($ExpandDRv -eq $True) {
+                if ($Expand -eq $True) {
 
                     $Strt = Get-Date
                     #Expand the MSI remaining in the $Global:DrvInfo
