@@ -737,6 +737,13 @@ function Import-SurfaceDrivers {
             }
         }
         $RepoPath = (Get-Item -Path $RepoPath -Verbose).FullName
+        If(!(test-path $RepoPath)) {
+
+            write-verbose "Create $RepoPath directory"
+            New-Item -ItemType Directory -Force -Path $RepoPath | out-null
+
+        }
+
 
 
         # Display the target OS revision asked

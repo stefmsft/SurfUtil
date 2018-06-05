@@ -1,7 +1,7 @@
 <Config>
     <Defaults>
         <RootRepo>.\Repo</RootRepo>
-        <SurfaceModel>Surface Pro LTE</SurfaceModel>
+        <SurfaceModel>Surface Pro</SurfaceModel>
         <RootISO>.\Iso</RootISO>
         <TargetSKU>Windows 10 Pro</TargetSKU>
     </Defaults>
