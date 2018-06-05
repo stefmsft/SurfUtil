@@ -729,7 +729,7 @@ function Import-SurfaceDrivers {
         if ($RepoPath -eq "") {
             if ('RootRepo' -in $DefaultFromConfigFile.Keys) {
                 Write-Verbose "Getting Repo path from Defaults in Config file"  
-                $Model = $DefaultFromConfigFile['RootRepo']
+                $RepoPath = $DefaultFromConfigFile['RootRepo']
             }
             else {
                 Write-Host -ForegroundColor Red "Repo Path need to be specified in Input or in the Config file"
