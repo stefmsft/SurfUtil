@@ -1,7 +1,6 @@
 $VerbosePreference = "Continue"
 $VerbosePreference = "SilentlyContinue"
 
-
 $MPath = "$PSScriptRoot\Import-SurfaceDrivers.psm1"
 write-host "Loading Module $MPath"
 Import-Module $MPath -force

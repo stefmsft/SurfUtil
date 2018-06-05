@@ -22,7 +22,7 @@ try {
     ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
 
     foreach ($SurfaceModel in $SurfModelHT.keys) {
-        Import-SurfaceDrivers -Model $SurfaceModel -CheckOnly $False -Root $LocalRepoPathDir
+        Import-SurfaceDrivers -Model $SurfaceModel -CheckOnly $False -RepoPath $LocalRepoPathDir
     }
 
 }

@@ -3,7 +3,7 @@ function Get-LocalDriversInfo {
     param
     (
         [Alias('RootRepo')]
-        [string]$RPath = '.\Repo'
+        [string]$RPath
         ,
         [Alias('Model')]
         [string]$DrvModel
@@ -500,6 +500,18 @@ function Expand-MSI{
     }
 }
 function Get-MSIFile {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
     [CmdletBinding()]
     param
     (
@@ -514,7 +526,8 @@ function Get-MSIFile {
     )
     
     begin {
-         Write-Verbose "Begin procesing Get-MSIFile(Link=$url,LPath=$TargetPath,File=$targetFile)"  
+         Write-Verbose "Begin procesing Get-MSIFile"  
+         Import-Module BitsTransfer
     }
   
     process {
@@ -525,31 +538,7 @@ function Get-MSIFile {
             $FulltargetFile = "$FullTP\$TargetFile"
             write-host $FulltargetFile
 
-            $uri = New-Object "System.Uri" "$url" 
-            $request = [System.Net.HttpWebRequest]::Create($uri) 
-            $request.set_Timeout(15000) #15 second timeout 
-            $response = $request.GetResponse()
-            $totalLength = [System.Math]::Floor($response.get_ContentLength()/1024) 
-            $responseStream = $response.GetResponseStream() 
-            $targetStream = New-Object -TypeName System.IO.FileStream -ArgumentList $FulltargetFile, Create 
-            $buffer = new-object byte[] 10KB 
-            $count = $responseStream.Read($buffer,0,$buffer.length) 
-            $downloadedBytes = $count 
-
-            while ($count -gt 0) 
-            { 
-                $Downloaded = [System.Math]::Floor($downloadedBytes/1024)
-                $PercentD = [math]::Round((100/$totalLength)*$Downloaded)
-                if ($PercentD -gt 100) {$PercentD = 100}
-                Write-Progress -Activity "Download MSI" -Status "$Downloaded K Downloaded:" -PercentComplete $PercentD
-                $targetStream.Write($buffer, 0, $count) 
-                $count = $responseStream.Read($buffer,0,$buffer.length) 
-                $downloadedBytes = $downloadedBytes + $count 
-            } 
-            $targetStream.Flush()
-            $targetStream.Close() 
-            $targetStream.Dispose() 
-            $responseStream.Dispose() 
+            Start-BitsTransfer -Source $url -Destination $FulltargetFile
 
         }
         catch [System.Exception] {
@@ -670,7 +659,7 @@ function Import-SurfaceDrivers {
     - Surface Book
     - Surface Studio
     - Surface Pro 4
-    - Surface Pro
+    - Surface Pro 3
 
     .PARAMETER WindowsVersion    
     Targeted Version of Windows 10
