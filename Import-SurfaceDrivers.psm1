@@ -356,7 +356,7 @@ function Set-DriverRepo {
     )
   
     begin {
-        Write-Verbose "Begin procesing Set-DriverRepo(Root=$RootRepo,Model=$SubFolder)"  
+        Write-verbose "Begin procesing Set-DriverRepo(Root=$RootRepo,Model=$SubFolder)"  
     }
   
     process {
@@ -366,8 +366,8 @@ function Set-DriverRepo {
 
             If(!(test-path $RootRepo))
             {
-                Write-Verbose "Create $RootRepo"
-                New-Item -ItemType Directory -Force -Path $RootRepo | out-null
+                Write-Host "Create $RootRepo"
+                New-Item -ItemType Directory -Force -Path $RootRepo | Out-Null
             }
 
             foreach ($s in $SubFolder) {
@@ -736,15 +736,14 @@ function Import-SurfaceDrivers {
                 return $false
             }
         }
-        $RepoPath = (Get-Item -Path $RepoPath -Verbose).FullName
+        
         If(!(test-path $RepoPath)) {
-
-            write-verbose "Create $RepoPath directory"
-            New-Item -ItemType Directory -Force -Path $RepoPath | out-null
-
+            Write-Host "Create $RepoPath"
+            New-Item -ItemType Directory -Force -Path $RepoPath | Out-Null
         }
+        $RepoPath = (Get-Item -Path $RepoPath -Verbose).FullName
 
-
+        Write-Host "Repo path set to $RepoPath"
 
         # Display the target OS revision asked
         if ($WindowsVersion -ne "") {
