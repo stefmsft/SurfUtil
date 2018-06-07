@@ -1,58 +1,55 @@
 # Introduction 
 
 **SurfUtil** or *Surface Utilities* is a set of tools that eases the management of Surface Tablets.
-In its first version the focus is put on the generation of bootable installation USB keys specific to each Surface model.
+In its first version the focus is set on the generation of bootable installation USB keys specific to each Surface model.
 
 # Description
 
 The core part is held inside of a module (SurfUtil.psm1)
-Then you'll find a set of little script functions dedicated to spécific actions
+Then you'll find a set of little script functions dedicated to spécific actions. This is those function that most poeple will use and I'm going to detail then below.
 
-- Drivers related functions
+## Drivers related functions
   
-  The goal is to check the donwload driver web site ( [http://aka.ms/surfacedrivers](http://aka.ms/surfacedrivers) ) for more up to date version of a driver set and gather it to a local repository of reference.
+  The goal here is to check Microsoft donwload driver web site ( [http://aka.ms/surfacedrivers](http://aka.ms/surfacedrivers) ) for the latest version of a driver set and gather it to a local repository if missing.
+  A driver set is a msi file regularly pushed online containing the cumulative updated drivers and firmware for a surface model.
   
-  By default the Repository directory is named .\Repo and have the following structure :
-    * .\Repo
-      * *Surface model*
-        * *Targeted OS Version*
+  By default the local repository directory is named ".\Repo" and have the following structure :
++ .\Repo 
+  + Surface model  
+    + Targeted OS Version
 
-  Two functions are available :
+Two functions are available in this field:
 
-  . UdateRepo.ps1
++ UdateRepo.ps1  
+It gathers all the Surface Models listed in the ModelsDB.XML file and verifies if we have locally (under .\Repo by default) the latest version of the Surface driver set available online.  
+>_Note, that for some Surface Model, you can have multiple "latest driver set" because some are published explicitly for a minimun version of the Targeted OS._
 
-      It gathers all the Surface Models listed in the ModelsDB.XML file and verifies if we have locally (under .\Repo by default) the latest version of the Surface driver set available online.
++ UdateMySurface.ps1  
+When ran on a Surface Tablet, it gathers the device info (model, OS version, ... ) so it can verifies if we have latest drivers set locally and if not, it gather it and apply it to your Surface.  
+This is equivalent of forcing a download from WU or checking online if a new driver set msi is available to apply.
+You can do this in a one line of powershell command and even can think of creating a scheduled job to make regular check on your behalf.
 
-      Note, that for a Surface Model, you can have multiple "latest driver set" because some are publish explicitly for a minimun version of the OS present on the Surface.
+## Bare Metal Recovery Master functions
 
-  . UdateMySurface.ps1
+  The goal of those functions (only one for now but more will come) is to generate an bootable USB key to achieve actions like reinstalling a slipstreamed version (OS+Driver Set) targeted to a specific version of Windows 10 (see below)
+  + MakeBMR.ps1  
+As described above, this will allow you the generate an bootable USB Key for a model of Surface. This key will allow  you to reinstal the machine in arround 20 min.
 
-      When ran on a Surface Tablet, it gathers the device info (model, OS version, ... ) so it can verifies if we have latest drivers set locally and if not, it gather it and apply it to your Surface.
-      This is equivalent of forcing a download from WU or checking online if a new driver set msi is available to apply.
-      You can do this in a one line of powershell command and even can think of creating a scheduled job to make regular check on your behalf.
+Two important prerequisit  
+- You need to provide the letter of the USB key you inserted in your machine.
+- The function expect to find an ISO holding the targeted version of the OS in the .\iso subdirectory.
+  - The script use the string __*"\*windows_10\*_TargetedOSVersion\*"*__ as a search filter.
+    - For instance if my **.\iso** directory holds the file *en_windows_10_business_editions_version_1803_updated_march_2018_x64_dvd_12063333.iso* freshly download from msdn for instance, the script will be happy to generate USB keys with 1803 as a targeted OS Version.
+    >Note also that the iso have to held at least one *Windows 10 Pro Sku* distribution. This restriction might change in the future.
 
-- BMR Master related functions
-
-    The goal of those functions (only one for now but more will come) is to generate an bootable USB key to achieve actions like reinstalling a slipstreamed version (OS+Driver Set) targeted to a specific version of Windows 10 (see below).
-  
-    . MakeBMR.ps1
-
-    As described above, this will allow you the generate an bootable USB Key for a model of Surface. This key will allow you you to reinstal the machine in arround 20 min. *TargetedOSVersion*
-
-    Two important prerequisit
-    - You need to provide the letter of the key you inserted in your machine. This qu
-    - The function script need to find an ISO holding the targeted version of the OS. It will search this in the .\iso subdirectory using a search filter such as "windows_10*_TargetedOSVersion*" where *TargetedOSVersion* can be one of the listed version below.
-    For instance is my **.\iso** directory hold the file *en_windows_10_business_editions_version_1803_updated_march_2018_x64_dvd_12063333.iso* freshly download from msdn for instance, the script will be happy.
-    Note also that the iso have to held at least one *Pro Sku*. This might be configurable in the future.
-
-    So for example, if you wish to generate an bootable Bare Metal Recovery key on Windows 10 1803 for your Surface Pro 3 you just have to use the following command :
+So for example, if you wish to generate an bootable Bare Metal Recovery key based on Windows 10 1803 for your Surface Pro 3 you just have to use the following command :
     
       .\MakeBMR -Drive D -SurfaceModel "Surface Pro3" -WindowsVersion 1803
 
-    Where D is the letter holding my 8Go USB Key
-    You can add also the *-MkISO $true* parameter to generate an ISO copy of your key for future reuse.
++ Where D is the letter holding my 8Go USB Key
++ You can add also the *-MkISO $true* parameter to generate an ISO copy of your key for future reuse.
 
-    There is no magic in the tool, It gather the required OS file from the iso, it gather the latest driver from the net, it mix that and optimize the ruslting size so the key held the minimun required data to be functional. The result is an optimized slipstreams version of a Windows installation key dedicated to the Surface Model requested.
+Keep in mind that there is no magic in the tool, It just gathers the required OS file from the iso then gathers the latest driver from the net finaly it mixes that and optimizes the resulting media size.  It also do the spliting of wim files when needed. The result is an optimized slipstreamed version of a Windows installation key dedicated to the Surface Model requested.
 
     Here is the output of the command expected
 
@@ -103,7 +100,6 @@ A the date of the latest release this is :
 + RS3 (1709)
 + RS4 (1803)
 
-
 As for the Drivers part, the available drivers version online will drive what the tool support ... For the boot key generation, you are in charge of providing the OS distribution you wish to use (iso file).The result will be as good as the quality of the ingredient you use with the tool.
 
 # Getting Started
@@ -118,7 +114,7 @@ https://github.com/stefmsft/SurfUtil.git
 
 1.	Installation process
 
-    There's no instal process per say. The available scripts load the required module before their execution.
+    There's no installation process per say. The available scripts loads the required module before their execution.
     
     *A script named LoadAndCheck.ps1 allows to load SurfUtil helper modules without executing any actions.
 
@@ -128,7 +124,7 @@ https://github.com/stefmsft/SurfUtil.git
     
         Set it back to "SilentlyContinue" to remove the verbosity
     
-    After modificagion of the file, run do a :
+    After modification of the file, do a run of :
 
         . .\LoadAndCheck.ps1
 
@@ -139,15 +135,15 @@ https://github.com/stefmsft/SurfUtil.git
     * Powershell V5
 
 3.	Latest releases
-    0.3
+    0.9
 
 4.	Artefacts
-    1. Phase One
-        - Import-SurfaceDrivers.psm1
-        - UpdateMySurface.ps1
-        - UpdateRepo.ps1
-    2. Phase Two
-        - TBD
+    * Import-SurfaceDrivers.psm1
+    * UpdateMySurface.ps1
+    * UpdateRepo.ps1
+    * MakeBMR.ps1
+    * config.xml
+    * ModelsDB.xml
 
 # Build and Test
 Unitest are conducted by pester. They are run online thru the build process thu the tools building process (VSTS). This is part of a Continuous integration process. The release process is trigger manually then and it mainly consist to a synchronisation of the code tree to GitHub for public availability.
@@ -156,7 +152,12 @@ To get the latest version of Pester use the following command :
 
 >*Install-Module -Name Pester -Force -SkipPublisherCheck*
 
-Part of the released code you'll see file with .test.ps1 extensions. Those are the uni tests for the project.
+Part of the released code you'll see file with .test.ps1 extensions. Those are the unitests for the project.  
+To manually trigger the pester tests you can run :
+
+>*Invoke-Pester *nameofthescript*.test.ps1
+
+You can use wildcard (*.test.ps1) to run all the test.
 
 # Contribute
 All the Microsoft Surface TSP/GBB are welcome to contribute directly to the internal VSTS project. Send me a mail so I can add you to the repo.
