@@ -135,10 +135,10 @@ https://github.com/stefmsft/SurfUtil.git
     * Powershell V5
 
 3.	Latest releases
-    0.9
+    1.0
 
 4.	Artefacts
-    * Import-SurfaceDrivers.psm1
+    * SurfUtil.psm1
     * UpdateMySurface.ps1
     * UpdateRepo.ps1
     * MakeBMR.ps1
