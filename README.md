@@ -138,7 +138,7 @@ https://github.com/stefmsft/SurfUtil.git
     0.9
 
 4.	Artefacts
-    * Import-SurfaceDrivers.psm1
+    * SurfUtil.psm1
     * UpdateMySurface.ps1
     * UpdateRepo.ps1
     * MakeBMR.ps1
