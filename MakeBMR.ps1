@@ -9,7 +9,7 @@ Param(  [Parameter( Mandatory=$true)]
         [bool]$MkISO
     )
 
-Import-Module "$PSScriptRoot\Manage-BMR.psm1" -force | Out-Null
+Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
 
 try {
 

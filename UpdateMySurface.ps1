@@ -1,4 +1,4 @@
-Import-Module .\Import-SurfaceDrivers.psm1 -force
+Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
 
 try {
 
