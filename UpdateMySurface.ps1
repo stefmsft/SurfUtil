@@ -1,4 +1,4 @@
-Import-Module .\Import-SurfaceDrivers.psm1 -force
+Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
 
 try {
 
@@ -56,7 +56,7 @@ try {
     $ret = Import-SurfaceDrivers -Model $SurfaceModel -OSTarget $os -Root $LocalRepoPathDir
     if ($ret -eq $False) {
         Write-Host "No Drivers found for the current OS ... Looking for previous versions"
-        $ret = Import-SurfaceDrivers -Model $SurfaceModel -Root $LocalRepoPathDir -Apply $True
+        $ret = Import-SurfaceDrivers -Model $SurfaceModel -RepoPath $LocalRepoPathDir -Apply $True
     }
 
 }

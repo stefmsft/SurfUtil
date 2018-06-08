@@ -12,13 +12,13 @@
             <OS MinSupported='RS2'>
             </OS>
         </Surface>
-        <Surface ID='Surface Pro4'>
+        <Surface ID='Surface Pro 4'>
             <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=49498'>
             </Drivers>
             <OS MinSupported=''>
             </OS>
         </Surface>
-        <Surface ID='Surface Pro3'>
+        <Surface ID='Surface Pro 3'>
             <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=38826'>
             </Drivers>
             <OS MinSupported=''>
