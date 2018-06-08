@@ -13,6 +13,14 @@ Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
 
 try {
 
+    #Verifiy if ran in Admin
+    $IsAdmin = [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")
+    if ($IsAdmin -eq $False) {
+        Write-Host -ForegroundColor Red "Please use this script in an elevated Admin context"
+        return $false
+    }
+
+
     $DefaultFromConfigFile = Import-Config
     ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
 

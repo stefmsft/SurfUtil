@@ -2,6 +2,13 @@ Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
 
 try {
 
+    #Verifiy if ran in Admin
+    $IsAdmin = [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")
+    if ($IsAdmin -eq $False) {
+        Write-Host -ForegroundColor Red "Please use this script in an elevated Admin context"
+        return $false
+    }
+
     ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
 
     $MachineModel = (Get-WmiObject -namespace root\wmi -class MS_SystemInformation | select-object SystemSKU).SystemSKU
@@ -34,6 +41,8 @@ try {
         $SurfaceModel = "Surface Laptop"
     }
 
+    Write-Verbose "Model : $SurfaceModel"
+
     $DefaultFromConfigFile = Import-Config
     
     $localp = (Get-Item -Path ".\" -Verbose).FullName
@@ -53,7 +62,7 @@ try {
     $ios = (Get-WmiObject Win32_OperatingSystem | select-object BuildNumber).BuildNumber
     $os = (($OSReleaseHT.GetEnumerator()) | Where-Object { $_.Value -eq $ios }).Name
 
-    $ret = Import-SurfaceDrivers -Model $SurfaceModel -OSTarget $os -Root $LocalRepoPathDir
+    $ret = Import-SurfaceDrivers -Model $SurfaceModel -WindowsVersion $os -RepoPath $LocalRepoPathDir -Apply $True
     if ($ret -eq $False) {
         Write-Host "No Drivers found for the current OS ... Looking for previous versions"
         $ret = Import-SurfaceDrivers -Model $SurfaceModel -RepoPath $LocalRepoPathDir -Apply $True
