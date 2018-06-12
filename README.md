@@ -166,7 +166,7 @@ External contributor are welcome to submit me pull requests as well.
 
 # Known Issue
 
-- Download time is slow due to the API used for assynchronous method (progress bar) - This will be addressed after feature completion (Work Item : 1)
+- Download time is slow due to the API used for asynchronous method (progress bar) - This will be addressed after feature completion (Work Item : 1)
 - The download logic need to be fix when -Apply $True parameter is used. Today it downloads all Target Version OS before applying the latest.
 
 # History and thanks
@@ -174,4 +174,4 @@ This project started with 2 influences
 
 1. The script build by a peer colleague (__Casey Hill__). I've used then for a while and the indeniable value there is the part that allow to guess the URL for Surface firmware/driver update online. When I decided to go a step further on what was available, I learned a lot from Casey scripts for the part.
 
-2. All the work done by the team develloping and maintening the PDT project. PDT is a set of Powsrshell Tool that allow anyone to generate a System Center lab environment. I took a lot of their inspiring work to speed mine on generating automated booting media. 
+2. All the work done by the team develloping and maintening the PDT project. PDT is a set of Powershell Tool that allow anyone to generate a System Center lab environment. I took a lot of their inspiring work to speed mine on generating automated booting media. 
