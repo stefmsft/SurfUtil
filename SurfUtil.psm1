@@ -1,102 +1,211 @@
+function IsOSVersionSupported {
+    param (
+        [string]$OS2Check
+    )
+
+    $returnv = $false
+    $DBFileName = "$PSScriptRoot\ModelsDB.xml"
+    If(test-path $DBFileName) {
+        [XML]$ModelDBFile = Get-Content $DBFileName
+    }
+    else {
+         Write-Verbose "Warning Model DB File not found"
+         return $returnv
+    }
 
 
-function New-IsoFile  {  
-<#  
-    .Synopsis  
-    Creates a new .iso file  
-    .Description  
-    The New-IsoFile cmdlet creates a new .iso file containing content from chosen folders  
-    .Example  
-    New-IsoFile "c:\tools","c:Downloads\utils"  
-    This command creates a .iso file in $env:temp folder (default location) that contains c:\tools and c:\downloads\utils folders. The folders themselves are included at the root of the .iso image.  
-    .Example 
-    New-IsoFile -FromClipboard -Verbose 
-    Before running this command, select and copy (Ctrl-C) files/folders in Explorer first.  
-    .Example  
-    dir c:\WinPE | New-IsoFile -Path c:\temp\WinPE.iso -BootFile "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\efisys.bin" -Media DVDPLUSR -Title "WinPE" 
-    This command creates a bootable .iso file containing the content from c:\WinPE folder, but the folder itself isn't included. Boot file etfsboot.com can be found in Windows ADK. Refer to IMAPI_MEDIA_PHYSICAL_TYPE enumeration for possible media types: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366217(v=vs.85).aspx  
-    .Notes 
-    NAME:  New-IsoFile  
-    AUTHOR: Chris Wu 
-    LASTEDIT: 03/23/2016 14:46:50  
-#>  
+    foreach ($Child in $ModelDBFile.ModelsDB.OSRelease.ChildNodes ) {
 
-[CmdletBinding(DefaultParameterSetName='Source')]Param( 
-    [parameter(Position=1,Mandatory=$true,ValueFromPipeline=$true, ParameterSetName='Source')]$Source,  
-    [parameter(Position=2)][string]$Path = "$env:temp\$((Get-Date).ToString('yyyyMMdd-HHmmss.ffff')).iso",  
-    [ValidateScript({Test-Path -LiteralPath $_ -PathType Leaf})][string]$BootFile = $null, 
-    [ValidateSet('CDR','CDRW','DVDRAM','DVDPLUSR','DVDPLUSRW','DVDPLUSR_DUALLAYER','DVDDASHR','DVDDASHRW','DVDDASHR_DUALLAYER','DISK','DVDPLUSRW_DUALLAYER','BDR','BDRE')][string] $Media = 'DVDPLUSRW_DUALLAYER', 
-    [string]$Title = (Get-Date).ToString("yyyyMMdd-HHmmss.ffff"),  
-    [switch]$Force, 
-    [parameter(ParameterSetName='Clipboard')][switch]$FromClipboard 
-) 
+        if ($Child.ReleaseCode.tolower() -eq $OS2Check.tolower()) {
+            if ($null -ne $Child.Supported) {
+                if ($Child.Supported.tolower() -eq "n") {
+                    return $False
+                } else {
+                    return $True #Supported by default
+                }
+            } else {
+                return $True
+            } #If Supported property absent then OS is Supported by default
+        }
+    }
 
-Begin {  
-    ($cp = new-object System.CodeDom.Compiler.CompilerParameters).CompilerOptions = '/unsafe' 
-    if (!('ISOFile' -as [type])) {  
-    Add-Type -CompilerParameters $cp -TypeDefinition @' 
-public class ISOFile  
-{ 
-public unsafe static void Create(string Path, object Stream, int BlockSize, int TotalBlocks)  
-{  
-    int bytes = 0;  
-    byte[] buf = new byte[BlockSize];  
-    var ptr = (System.IntPtr)(&bytes);  
-    var o = System.IO.File.OpenWrite(Path);  
-    var i = Stream as System.Runtime.InteropServices.ComTypes.IStream;  
+}
+function Get-LatestCUUrl{
+    <#
+    .SYNOPSIS
+    Function returns the download URL as string of the latest CU for the requested Build.
+    .DESCRIPTION
+    Author Eric Scherlinger
+        Written to enhance SurfUtil processing
+    .EXAMPLE
+    Get-LatestCU
+    .EXAMPLE
+    Get-LatestCU -TargetOS "1607"
+    .PARAMETER TargetOS
+    Enter the Win 10 Version number (1507,1511,1607,...) by default we use the latest version.
+    .NOTES
+    NAME:  Get-LatestCU
+    AUTHOR: Eric Scherlinger
+    LASTEDIT: 13/07/2018
+    #>
+    param
+    (
+        [Alias('TargetOS')]
+        [string]$TargetedOS
+    )
 
-    if (o != null) { 
-    while (TotalBlocks-- > 0) {  
-        i.Read(buf, BlockSize, ptr); o.Write(buf, 0, bytes);  
-    }  
-    o.Flush(); o.Close();  
-    } 
-} 
-}  
-'@  
-    } 
+    ## Check if Target OS provided and instantiate a version filter.
+    [string]$URL="Not Found"
+    $versionfilter=$null
+    if($TargetedOS){
+        ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
+        $versionfilter= $OSReleaseHT.item($TargetedOS)
+    }
 
-    if ($BootFile) { 
-        if('BDR','BDRE' -contains $Media) { Write-Warning "Bootable image doesn't seem to work with media type $Media" } 
-        ($Stream = New-Object -ComObject ADODB.Stream -Property @{Type=1}).Open()  # adFileTypeBinary 
-        $Stream.LoadFromFile((Get-Item -LiteralPath $BootFile).Fullname) 
-        ($Boot = New-Object -ComObject IMAPI2FS.BootOptions).AssignBootImage($Stream) 
-    } 
-    
-    $MediaType = @('UNKNOWN','CDROM','CDR','CDRW','DVDROM','DVDRAM','DVDPLUSR','DVDPLUSRW','DVDPLUSR_DUALLAYER','DVDDASHR','DVDDASHRW','DVDDASHR_DUALLAYER','DISK','DVDPLUSRW_DUALLAYER','HDDVDROM','HDDVDR','HDDVDRAM','BDROM','BDR','BDRE') 
-    
-    Write-Verbose -Message "Selected media type is $Media with value $($MediaType.IndexOf($Media))" 
-    ($Image = New-Object -com IMAPI2FS.MsftFileSystemImage -Property @{VolumeName=$Title}).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media)) 
-    
-    if (!($Target = New-Item -Path $Path -ItemType File -Force:$Force -ErrorAction SilentlyContinue)) { Write-Error -Message "Cannot create file $Path. Use -Force parameter to overwrite if the target file already exists."; break } 
-    }  
-    
-    Process { 
-    if($FromClipboard) { 
-        if($PSVersionTable.PSVersion.Major -lt 5) { Write-Error -Message 'The -FromClipboard parameter is only supported on PowerShell v5 or higher'; break } 
-        $Source = Get-Clipboard -Format FileDropList 
-    } 
-    
-    foreach($item in $Source) { 
-        if($item -isnot [System.IO.FileInfo] -and $item -isnot [System.IO.DirectoryInfo]) { 
-        $item = Get-Item -LiteralPath $item 
-        } 
-    
-        if($item) { 
-        Write-Verbose -Message "Adding item to the target image: $($item.FullName)" 
-        try { $Image.Root.AddTree($item.FullName, $true) } catch { Write-Error -Message ($_.Exception.Message.Trim() + ' Try a different media type.') } 
-        } 
-    } 
-    } 
-    
-    End {  
-    if ($Boot) { $Image.BootImageOptions=$Boot }  
-    $Result = $Image.CreateResultImage()  
-    [ISOFile]::Create($Target.FullName,$Result.ImageStream,$Result.BlockSize,$Result.TotalBlocks) 
-    Write-Verbose -Message "Target image ($($Target.FullName)) has been created" 
-    $Target 
-    } 
-} 
+    [string] $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
+    ## JSON Source to all Windows Update for Win10
+
+    ## Get the list of KBs for Win 10
+    $KBs= Invoke-RestMethod -Uri $Startkb
+
+    # Get the Latest KB either latest or based on the version filter.
+    if($versionfilter){
+
+        $LatestKB= ($kbs.links | Where-Object {$_.text -like "*$versionfilter*"})[0]
+    }
+    else {
+        $LatestKB=$KBs.links | Where-Object {$_.id -eq $KBs.links.Count}
+    }
+
+    ## Search for the KB GUID
+    $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($LatestKB.articleID)%20x64%20windows%2010"
+    # Parse the Response
+    $KBGUID=($kbObj.Links | Where-Object {$_.id -match "_link"}).id -replace "_link"
+    $KBText=($kbObj.Links | Where-Object {$_.id -match "_link"}).innerText.ToLower()
+
+    $i=0
+    foreach ($kb in $KBGUID) {
+
+        if ($KBText.count -eq 1) {
+            $curTxt = $KBText
+        } else {
+            $curTxt = $KBText[$i]
+        }
+
+        if ($curTxt.Contains("cumulative")) {
+            #Select only Cumulatives
+
+            ##Creat Post Request to get the Download URL of the Update
+            $Post = @{ size = 0; updateID = $kb; uidInfo = $kb } | ConvertTo-Json -Compress
+            $PostBody = @{ updateIDs = "[$Post]" }
+
+            ## Fetch and parse the download URL
+            $PostRes = (Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody).content
+            $URL= ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+        }
+        $i = $i + 1
+    }
+
+    ##Return the URL
+    return $URL
+}
+function New-IsoFile  {
+<#
+    .Synopsis
+    Creates a new .iso file
+    .Description
+    The New-IsoFile cmdlet creates a new .iso file containing content from chosen folders
+    .Example
+    New-IsoFile "c:\tools","c:Downloads\utils"
+    This command creates a .iso file in $env:temp folder (default location) that contains c:\tools and c:\downloads\utils folders. The folders themselves are included at the root of the .iso image.
+    .Example
+    New-IsoFile -FromClipboard -Verbose
+    Before running this command, select and copy (Ctrl-C) files/folders in Explorer first.
+    .Example
+    dir c:\WinPE | New-IsoFile -Path c:\temp\WinPE.iso -BootFile "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\efisys.bin" -Media DVDPLUSR -Title "WinPE"
+    This command creates a bootable .iso file containing the content from c:\WinPE folder, but the folder itself isn't included. Boot file etfsboot.com can be found in Windows ADK. Refer to IMAPI_MEDIA_PHYSICAL_TYPE enumeration for possible media types: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366217(v=vs.85).aspx
+    .Notes
+    NAME:  New-IsoFile
+    AUTHOR: Chris Wu
+    LASTEDIT: 03/23/2016 14:46:50
+#>
+
+[CmdletBinding(DefaultParameterSetName='Source')]Param(
+    [parameter(Position=1,Mandatory=$true,ValueFromPipeline=$true, ParameterSetName='Source')]$Source,
+    [parameter(Position=2)][string]$Path = "$env:temp\$((Get-Date).ToString('yyyyMMdd-HHmmss.ffff')).iso",
+    [ValidateScript({Test-Path -LiteralPath $_ -PathType Leaf})][string]$BootFile = $null,
+    [ValidateSet('CDR','CDRW','DVDRAM','DVDPLUSR','DVDPLUSRW','DVDPLUSR_DUALLAYER','DVDDASHR','DVDDASHRW','DVDDASHR_DUALLAYER','DISK','DVDPLUSRW_DUALLAYER','BDR','BDRE')][string] $Media = 'DVDPLUSRW_DUALLAYER',
+    [string]$Title = (Get-Date).ToString("yyyyMMdd-HHmmss.ffff"),
+    [switch]$Force,
+    [parameter(ParameterSetName='Clipboard')][switch]$FromClipboard
+)
+
+Begin {
+    ($cp = new-object System.CodeDom.Compiler.CompilerParameters).CompilerOptions = '/unsafe'
+    if (!('ISOFile' -as [type])) {
+    Add-Type -CompilerParameters $cp -TypeDefinition @'
+public class ISOFile
+{
+public unsafe static void Create(string Path, object Stream, int BlockSize, int TotalBlocks)
+{
+    int bytes = 0;
+    byte[] buf = new byte[BlockSize];
+    var ptr = (System.IntPtr)(&bytes);
+    var o = System.IO.File.OpenWrite(Path);
+    var i = Stream as System.Runtime.InteropServices.ComTypes.IStream;
+
+    if (o != null) {
+    while (TotalBlocks-- > 0) {
+        i.Read(buf, BlockSize, ptr); o.Write(buf, 0, bytes);
+    }
+    o.Flush(); o.Close();
+    }
+}
+}
+'@
+    }
+
+    if ($BootFile) {
+        if('BDR','BDRE' -contains $Media) { Write-Warning "Bootable image doesn't seem to work with media type $Media" }
+        ($Stream = New-Object -ComObject ADODB.Stream -Property @{Type=1}).Open()  # adFileTypeBinary
+        $Stream.LoadFromFile((Get-Item -LiteralPath $BootFile).Fullname)
+        ($Boot = New-Object -ComObject IMAPI2FS.BootOptions).AssignBootImage($Stream)
+    }
+
+    $MediaType = @('UNKNOWN','CDROM','CDR','CDRW','DVDROM','DVDRAM','DVDPLUSR','DVDPLUSRW','DVDPLUSR_DUALLAYER','DVDDASHR','DVDDASHRW','DVDDASHR_DUALLAYER','DISK','DVDPLUSRW_DUALLAYER','HDDVDROM','HDDVDR','HDDVDRAM','BDROM','BDR','BDRE')
+
+    Write-Verbose -Message "Selected media type is $Media with value $($MediaType.IndexOf($Media))"
+    ($Image = New-Object -com IMAPI2FS.MsftFileSystemImage -Property @{VolumeName=$Title}).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
+
+    if (!($Target = New-Item -Path $Path -ItemType File -Force:$Force -ErrorAction SilentlyContinue)) { Write-Error -Message "Cannot create file $Path. Use -Force parameter to overwrite if the target file already exists."; break }
+    }
+
+    Process {
+    if($FromClipboard) {
+        if($PSVersionTable.PSVersion.Major -lt 5) { Write-Error -Message 'The -FromClipboard parameter is only supported on PowerShell v5 or higher'; break }
+        $Source = Get-Clipboard -Format FileDropList
+    }
+
+    foreach($item in $Source) {
+        if($item -isnot [System.IO.FileInfo] -and $item -isnot [System.IO.DirectoryInfo]) {
+        $item = Get-Item -LiteralPath $item
+        }
+
+        if($item) {
+        Write-Verbose -Message "Adding item to the target image: $($item.FullName)"
+        try { $Image.Root.AddTree($item.FullName, $true) } catch { Write-Error -Message ($_.Exception.Message.Trim() + ' Try a different media type.') }
+        }
+    }
+    }
+
+    End {
+    if ($Boot) { $Image.BootImageOptions=$Boot }
+    $Result = $Image.CreateResultImage()
+    [ISOFile]::Create($Target.FullName,$Result.ImageStream,$Result.BlockSize,$Result.TotalBlocks)
+    Write-Verbose -Message "Target image ($($Target.FullName)) has been created"
+    $Target
+    }
+}
 
 function Set-USBKey {
     <#
@@ -135,7 +244,7 @@ function Set-USBKey {
         [Alias('Sku')]
         [string]$TSku
     )
-    
+
     begin {
         Write-Verbose "Begin procesing Set-USBKey($Drv,$Src,$SurfaceModel,$TargetedOS,$DriverRepo,MakeISO=$MakeISO,$TSku)"
     }
@@ -153,7 +262,7 @@ function Set-USBKey {
 
             if (($TargetSize -lt 4) -Or ($TargetSize -gt 50)) {
                 Write-Host -ForegroundColor Red "Use a USB Drive with capacity between 4 and 50 Go";
-                return $False                
+                return $False
             }
 
             $message  = "If you agree, the external drive labeled [$TargetLabel] will be formated"
@@ -168,7 +277,7 @@ function Set-USBKey {
 
                 Write-Host 'Action canceled ...'
                 return $False
-                
+
             }
 
             #Check on the Source
@@ -237,7 +346,7 @@ function Set-USBKey {
                 }
             }
 
-            
+
             # Verify Scratch directory
             $ScrtchDir = "$env:TMP\Wimdir\Scratch"
             write-verbose "Test if $ScrtchDir exist"
@@ -274,19 +383,19 @@ function Set-USBKey {
 
                     param ([String] $TDrv, [String] $MISO, [String] $SurfaceModel, [String] $TOS, [String] $v)
 
-                        $VerbosePreference=$v 
+                        $VerbosePreference=$v
                         write-verbose "Call Job 1 ($TDrv,$MISO,$SurfaceModel,$TOS)"
-                
+
                         $Strt = Get-Date
                         write-host ":: Step 1"
                         write-host "========="
                         write-host "Formatting drive $TDrv ....."
-    
+
                         Format-Volume -DriveLetter $TDrv -FileSystem FAT32 -NewFileSystemLabel "BMR $TOS"
-    
+
                         write-host "Copying files....."
                         Copy-Item -Path ($MISO+":\*") -Destination ($TDrv+":\") -Exclude oinstall.wim, install.wim, *.swm -Force -Recurse
-    
+
                         $End = Get-Date
                         $Span = New-TimeSpan -Start $Strt -End $End
                         $Min = $Span.Minutes
@@ -295,9 +404,9 @@ function Set-USBKey {
                         write-host "============="
                         write-host ":: End Step 1"
                         write-host "============="
-    
+
                 } -ArgumentList $Drv, $MountedLetter, $SurfaceModel, $TargetedOS, $VerbosePreference
-                $ret = $JbLst.Add($JobFormatAndCopy) 
+                $ret = $JbLst.Add($JobFormatAndCopy)
 
             } else {
 
@@ -308,21 +417,21 @@ function Set-USBKey {
 ######
 # Job 2 Prepare the Wim File
 ######
-            
+
             if ($Global:SkipJ2 -ne $true) {
 
                 Write-Verbose "Firing Up Job 2 ..."
                 $JobPrepareWIM = Start-Job -Name "Job2" -ScriptBlock {
 
                         param ([String] $SrcWimLetter, [String] $TDir, [String] $TargetSKU, [String] $v)
-    
+
                         $VerbosePreference=$v
                         write-verbose "Call Job 2 ($SrcWimLetter,$TDir,$TargetSKU)"
 
                         $Strt = Get-Date
                         write-host ":: Step 2"
                         write-host "========="
-        
+
                         [String]$SrcWimFile = (Join-Path -Path "$SrcWimLetter" -ChildPath '\sources\install.wim')
                         [String]$DstWimFile = (Join-Path -Path "$TDir" -ChildPath '\install.wim')
                         write-host "Copying $WimToRemove install.wim"
@@ -333,7 +442,7 @@ function Set-USBKey {
                         $indx = $sku.imageindex
                         Write-verbose "Found [$TargetSKU] at index $indx"
 
-                        if ($sku -eq $null) {
+                        if ($null -eq $sku) {
 
                             $indx = -1
                             write-host "Job 2 : Operation Failed"
@@ -341,7 +450,7 @@ function Set-USBKey {
 
                         }
 
-        
+
                         $End = Get-Date
                         $Span = New-TimeSpan -Start $Strt -End $End
                         $Min = $Span.Minutes
@@ -350,12 +459,12 @@ function Set-USBKey {
                         write-host "============="
                         write-host ":: End Step 2"
                         write-host "============="
-        
+
                         return $indx
-                        
+
                 } -ArgumentList ($MountedLetter+":"), $TmpTDir, $TSku, $VerbosePreference
-                $ret = $JbLst.Add($JobPrepareWIM) 
-    
+                $ret = $JbLst.Add($JobPrepareWIM)
+
             } else {
 
             Write-verbose "Job 2 Skipped"
@@ -383,7 +492,7 @@ function Set-USBKey {
                         write-host "========="
 
                         $ret = import-module $IDMPath
-        
+
                         Write-Verbose "Calling : Import-SurfaceDrivers -Model $Model -WindowsVersion $os -RepoPath $LocalRepoPathDir -Expand $True"
                         $ret = Import-SurfaceDrivers -Model $Model -WindowsVersion $os -RepoPath $LocalRepoPathDir -Expand $True
 
@@ -394,25 +503,21 @@ function Set-USBKey {
                             $ret = Import-SurfaceDrivers -Model $Model -RepoPath $LocalRepoPathDir -Expand $True
 
                         }
-        
                         if ($ret -eq $false) {
                             write-host "Step 3 : Operation Failed"
                             write-host "         Drivers expand from msi failed"
                         }
-            
                         $End = Get-Date
                         $Span = New-TimeSpan -Start $Strt -End $End
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
-                        Write-Host "Drivers gathered in $Min Min and $Sec Seconds"    
+                        Write-Host "Drivers gathered in $Min Min and $Sec Seconds"
                         write-host "============="
                         write-host ":: End Step 3"
                         write-host "============="
-        
                 } -ArgumentList $SurfaceModel, $TargetedOS, $DriverRepo, $mp, $VerbosePreference
 
-                $ret = $JbLst.Add($JobGetExpandDrv) 
-                
+                $ret = $JbLst.Add($JobGetExpandDrv)
             } else {
 
                 Write-verbose "Job 3 Skipped"
@@ -424,7 +529,7 @@ function Set-USBKey {
             if ($VerbosePreference -eq "Continue") {
 
                 foreach ($j in $JbLst){
-                    Receive-Job $j    
+                    Receive-Job $j
                 }
             }
 
@@ -483,18 +588,14 @@ function Set-USBKey {
                 if ($Discard -eq $true) {
 
                     $CompactName = "ERROR"
-                    
                 } else {
 
                     $CompactName = "BMR-" + $SurfaceModel.replace(" ","").toupper() + $TargetedOS
                     #Export the image to a more compact one
-    
                     [String]$ExptWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install_serviced.wim')
                     $Ret = Export-WindowsImage -SourceImagePath $MntWimFile -SourceIndex $WimIndx -DestinationImagePath $ExptWimFile -DestinationName $CompactName -ScratchDirectory $ScrtchDir -LogPath $LogPath
-    
                     [String]$FinalSwmFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\install.swm')
                     $ret = Split-WindowsImage -FileSize 3500 -ImagePath $ExptWimFile -SplitImagePath $FinalSwmFile -CheckIntegrity -ScratchDirectory $ScrtchDir
-    
                 }
             }
 
@@ -503,9 +604,7 @@ function Set-USBKey {
             $IsoMounted = $false
 
             # Generate ISO file
-            #TBD Generate nice names 
             if (($MakeISO -eq $true) -and ($Discard -ne $true)) {
-                
                 $TCIsoName = ".\" + $CompactName + ".iso"
                 Get-ChildItem ($Drv + ":\") | New-IsoFile -Media 'DVDPLUSR_DUALLAYER' -Title $CompactName -Path $TCIsoName -Force
 
@@ -516,12 +615,10 @@ function Set-USBKey {
             Write-Host "Tagging with file $TagFileName"
 
             New-Item $TagFileName -type file
-    
             $End = Get-Date
             $Span = New-TimeSpan -Start $Strt -End $End
             $Min = $Span.Minutes
             $Sec = $Span.Seconds
-            
             if ($Discard -ne $true) {
 
                 Write-Host "Your BMR is ready"
@@ -532,9 +629,9 @@ function Set-USBKey {
                 Write-Host "    - Boot the Surface on the USB Key"
                 Write-Host ""
                 Write-Host "... You should have a reimaged Surface after 20 minutes"
-                return $true    
+                return $true
             } else {
-                Write-Host "Something wrong happened"                
+                Write-Host "Something wrong happened"
                 Write-Host "It took $Min Min and $Sec Seconds to process"
                 Write-Host "Check the logs"
 
@@ -564,16 +661,16 @@ function Set-USBKey {
             Get-Job | Remove-Job
             # Cleanup the misc Temp dir except we specify to keep them for debug purpose
             if ($Global:KeepExpandedDir -ne $true) {
-                
+
                 #Remove Expanded dir content
                 write-verbose "Removing the Expanded dir"
                 [String]$TMPDrvExpanded = (Join-Path -Path $env:TMP -ChildPath '\ExpandedMSIDir')
                 if (Test-Path $TMPDrvExpanded) {Remove-Item $TMPDrvExpanded -Force -Recurse}
-                
+
             }
 
             if ($Global:KeepDriversFile -ne $true) {
-                
+
                 #TBD Remove SDrivers files
                 write-verbose "Removing the SDrivers.log and SDrivers.msi files"
                 [String]$SDriversMsi = (Join-Path -Path $env:TMP -ChildPath '\SDrivers.msi')
@@ -585,7 +682,7 @@ function Set-USBKey {
             }
 
             if ($Global:KeepWimDir -ne $true) {
-                
+
                 #TBD Remove WimDir
                 write-verbose "Removing the TMP Wim dir"
                 [String]$TMPWimDir = (Join-Path -Path $env:TMP -ChildPath '\WimDir')
@@ -597,7 +694,67 @@ function Set-USBKey {
     }
 
     end {
-        Write-Verbose "End procesing Set-USBKey"  
+        Write-Verbose "End procesing Set-USBKey"
+    }
+}
+function Update-USBKey {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('Drive')]
+        [string]$DrvLetter
+        ,
+        [Alias('ISOPath')]
+        [string]$SrcISO
+        ,
+        [Alias('DRVPath')]
+        [string]$DrvRepoPath
+        ,
+        [Alias('Model')]
+        [string]$SurfaceModel
+        ,
+        [Alias('OSV')]
+        [string]$TargetedOS
+        ,
+        [Alias('MakeISO')]
+        [bool]$MkIso
+        ,
+        [Alias('TargetSKU')]
+        [string]$TrgtSKU
+    )
+
+    begin {
+        Write-Verbose "Begin procesing Update-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU)"
+    }
+
+    process {
+
+        try {
+
+            #Do something
+
+        }
+        catch [System.Exception] {
+            Write-Host -ForegroundColor Red $_.Exception.Message;
+            return $False
+        }
+
+    }
+
+    end {
+        Write-Verbose "End procesing Update-USBKey"
     }
 }
 function New-USBKey {
@@ -637,7 +794,7 @@ function New-USBKey {
         [Alias('TargetSKU')]
         [string]$TrgtSKU
     )
-    
+
     begin {
         Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU)"
 
@@ -668,7 +825,7 @@ function New-USBKey {
             if ($SrcISO -ne "") {
 
                 $SrcISO = (Get-Item -Path $SrcISO -Verbose).FullName
-            
+
             }
             else {
 
@@ -681,7 +838,7 @@ function New-USBKey {
             if ($DrvRepoPath -ne "") {
 
                 $DrvRepoPath = (Get-Item -Path $DrvRepoPath -Verbose).FullName
-            
+
             }
             else {
 
@@ -689,7 +846,7 @@ function New-USBKey {
                 return $False
 
             }
-            
+
             Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU
 
         }
@@ -717,12 +874,12 @@ function Get-LocalDriversInfo {
         [Alias('OSTarget')]
         [string]$OVers
     )
-    
+
     begin {
-         Write-Verbose "Begin procesing Get-LocalDriversInfo(Repo=$RPath,Model=$DrvModel,OSVersion=$OVers)"  
-        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
-   }
-  
+         Write-Verbose "Begin procesing Get-LocalDriversInfo(Repo=$RPath,Model=$DrvModel,OSVersion=$OVers)"
+         ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
+        }
+
     process {
 
         try {
@@ -739,7 +896,7 @@ function Get-LocalDriversInfo {
                             $tp = "$RPAth\$DrvModel\$curintver"
                             # verify if a real path actualy exist for this current higher version
                             If(test-path $tp) {
-                                $intver = $curintver        
+                                $intver = $curintver
                             }
 
                         }
@@ -757,7 +914,7 @@ function Get-LocalDriversInfo {
                 $ListExistMSI = $Dir | where-object {$_.extension -eq ".msi"}
                 if ($ListExistMSI.count -ne 0) {
                     foreach ($msifile in $ListExistMSI) {
-                        $FoundDrvHT = @{} 
+                        $FoundDrvHT = @{}
                         $ret = $FoundDrvHT.Add("OSVersion",$Overs)
                         $ret = $FoundDrvHT.Add("LPath",$lpathtocheck)
                         $ret = $FoundDrvHT.Add("FileName",$msifile)
@@ -770,7 +927,7 @@ function Get-LocalDriversInfo {
 
                     Write-Host -ForegroundColor Red "No msi found localy and remote driver site is unreachable"
                     return $False
-        
+
                 }
 
 
@@ -783,7 +940,7 @@ function Get-LocalDriversInfo {
                     if ($OVers -ne "") {
 
                         if ($OSSub -ne $OVers) { Break }
-                        
+
                     }
                     write-verbose "Testing if $LocalPathDir exist for [$DrvModel][$OSSub]"
                     If(!(test-path $LocalPathDir)) {
@@ -792,12 +949,12 @@ function Get-LocalDriversInfo {
                         New-Item -ItemType Directory -Force -Path $LocalPathDir | out-null
 
                     }
-                    
+
                     $FileName = $DrvHashT['FileName']
                     write-verbose "Check for $FileName"
                     $LocalPathFile = "$LocalPathDir\$FileName"
                     $DrvHashT.Add('LPath',$LocalPathDir)
-    
+
                     If(!(test-path $LocalPathFile)) {
 
                         $DrvHashT.Add('LatestPresent',"N")
@@ -806,8 +963,8 @@ function Get-LocalDriversInfo {
                     } else {
 
                         $DrvHashT.Add('LatestPresent',"Y")
-                        write-Verbose "$FileName is already downloaded"                        
-                        write-host "Driver for $OSSub found localy"                        
+                        write-Verbose "$FileName is already downloaded"
+                        write-host "Driver for $OSSub found localy"
 
                     }
                 }
@@ -826,7 +983,7 @@ function Get-LocalDriversInfo {
     }
 
     end {
-         Write-Verbose "End procesing Get-LocalDriversInfo"  
+         Write-Verbose "End procesing Get-LocalDriversInfo"
     }
 }
 function Get-RemoteDriversInfo {
@@ -840,35 +997,36 @@ function Get-RemoteDriversInfo {
         [Alias('OSTarget')]
         [string]$OVers
     )
-    
+
     begin {
-        Write-Verbose "Begin procesing Get-RemoteDriversInfo(Model=$DrvModel,OSVersion=$Overs)"  
-        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+        Write-Verbose "Begin procesing Get-RemoteDriversInfo(Model=$DrvModel,OSVersion=$Overs)"
+        ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
     }
-  
+
     process {
 
         try {
 
             [System.Collections.ArrayList]$CurLst = @()
-            
+
             if ($DrvModel -ne "") {
                 $urldrv = $SurfModelHT[$DrvModel.tolower()]
-                if ($urldrv -eq $null) {
+                $SearchPat = $SurfModelPS[$DrvModel.tolower()]
+                if ($null -eq $urldrv) {
                     Write-Host -ForegroundColor Red "Unknown Surface Model for the script : [$DrvModel]"
                     return $false
                 }
             }
 
-            if (($OVers -ne $null) -and ($OVers -ne "")) {
+            if (($null -ne $OVers) -and ($OVers -ne "")) {
                 $InternalR = $OSReleaseHT[$OVers.tolower()]
-                if ($InternalR -eq $null) {
+                if ($null -eq $InternalR) {
                     Write-Host -ForegroundColor Red "Unknown OS Release for the script : [$OVers]"
                     return $false
                 }
             }
 
-            Write-Verbose "Processing $urldrv"  
+            Write-Verbose "Processing $urldrv"
 
             try {
 
@@ -882,12 +1040,11 @@ function Get-RemoteDriversInfo {
 
                 return $false
             }
-        
             foreach ($link in $DrvPage.Links) {
 
                 $href = $link.href
-                if ($href -ne $null) {
-                    if ($href -like "*win10*.msi" ) {
+                if ($null -ne $href) {
+                    if ($href -like $SearchPat ) {
                         $DrvPrsLst = $href.tolower() -split '/'
                         $FileName = $DrvPrsLst[$DrvPrsLst.count-1] -split '.msi'
                         $DriverInfo = $FileName[0] -split '_'
@@ -903,13 +1060,13 @@ function Get-RemoteDriversInfo {
 
                         if ($VFound -notin $CurLst) {
 
-                            Write-Verbose "[$ret]:$href"   
+                            Write-Verbose "[$ret]:$href"
                             Write-Verbose "Found OS Version is $VFound"
                             if ($VFound -NotIn $CurLst) {
                                 if ($OVers -ne "") {
-                                    Write-Verbose "Asked OS Version is $OVers"  
+                                    Write-Verbose "Asked OS Version is $OVers"
                                     if ($Overs -eq $VFound) {
-                                        $FoundDrvHT = @{} 
+                                        $FoundDrvHT = @{}
                                         $ret = $FoundDrvHT.Add("OSVersion",$VFound)
                                         $ret = $FoundDrvHT.Add("Link",$href.tolower())
                                         $ret = $FoundDrvHT.Add("FileName",$DrvPrsLst[$DrvPrsLst.count-1])
@@ -918,7 +1075,7 @@ function Get-RemoteDriversInfo {
                                     }
                                 }
                                 else {
-                                    $FoundDrvHT = @{} 
+                                    $FoundDrvHT = @{}
                                     $ret = $FoundDrvHT.Add("OSVersion",$VFound)
                                     $ret = $FoundDrvHT.Add("Link",$href.tolower())
                                     $ret = $FoundDrvHT.Add("FileName",$DrvPrsLst[$DrvPrsLst.count-1])
@@ -928,7 +1085,7 @@ function Get-RemoteDriversInfo {
                             $ret = $CurLst.Add($VFound)
                         }
                     }
-                    else { write-verbose "Url skipped : Already in our list"}    
+                    else { write-verbose "Url skipped : Already in our list"}
                 }
             }
         }
@@ -942,7 +1099,7 @@ function Get-RemoteDriversInfo {
     }
 
     end {
-         Write-Verbose "End procesing Get-RemoteDriversInfo"  
+         Write-Verbose "End procesing Get-RemoteDriversInfo"
     }
 }
 function Import-SurfaceDB {
@@ -958,7 +1115,7 @@ function Import-SurfaceDB {
 
     Be carefull to keep the ModelsDB.XML file in the same directory than the module
 
-    The structure of the XML is : 
+    The structure of the XML is :
 
     <ModelsDB>
         <SurfacesModels>
@@ -975,7 +1132,7 @@ function Import-SurfaceDB {
     </ModelsDB>
 
     .EXAMPLE
-        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+        ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
 
     #>
         $DBFileName = "$PSScriptRoot\ModelsDB.xml"
@@ -983,15 +1140,21 @@ function Import-SurfaceDB {
             [XML]$ModelDBFile = Get-Content $DBFileName
         }
         else {
-             Write-Verbose "Warning Model DB File not found"  
+             Write-Verbose "Warning Model DB File not found"
 
         }
-    
-        $ModelsHT = @{}   # empty models hashtable   
+
+        $ModelsHT = @{}   # empty models hashtable for Drv Url
+        $ModelsHTSP = @{}   # empty models hashtable for Drv PAttern filter
 
         foreach ($Child in $ModelDBFile.ModelsDB.SurfacesModels.ChildNodes ) {
 
                 $ModelsHT.Add($Child.ID.tolower(),$Child.Drivers.url.tolower())
+                if ($null -eq $Child.Drivers.searchpattern) {
+                    $ModelsHTSP.Add($Child.ID.tolower(),"*Win10*.msi")
+                } else {
+                    $ModelsHTSP.Add($Child.ID.tolower(),$Child.Drivers.searchpattern)
+                }
         }
 
         $OSHT = @{}   # empty models hashtable
@@ -1001,7 +1164,7 @@ function Import-SurfaceDB {
                 $OSHT.Add($Child.ReleaseCode.tolower(),$Child.InternalCode.tolower())
         }
 
-    $CtxData = ($ModelsHT,$OSHT)
+    $CtxData = ($ModelsHT,$OSHT,$ModelsHTSP)
 
     return $CtxData
 }
@@ -1018,8 +1181,8 @@ function Import-Config
 
     Be carefull to keep the Config.XML file in the same directory than the module
 
-    The structure of the XML is : 
-    
+    The structure of the XML is :
+
     <Config>
         <Defaults>
             <ParameterName>value</ParameterName>
@@ -1036,7 +1199,7 @@ function Import-Config
         [XML]$ConfigFile = Get-Content $ConfFileName
     }
     else {
-         Write-Verbose "Warning Config File not found"  
+         Write-Verbose "Warning Config File not found"
         return $null
     }
 
@@ -1060,13 +1223,13 @@ function Set-DriverRepo {
         [Alias('Model')]
         [string[]]$SubFolder
     )
-  
+
     begin {
-        Write-verbose "Begin procesing Set-DriverRepo(Root=$RootRepo,Model=$SubFolder)"  
+        Write-verbose "Begin procesing Set-DriverRepo(Root=$RootRepo,Model=$SubFolder)"
     }
-  
+
     process {
-  
+
         Write-Verbose "Verify $RootRepo"
         try {
 
@@ -1096,15 +1259,15 @@ function Set-DriverRepo {
       }
 
       end {
-         Write-Verbose "End procesing Driver Repo"  
+         Write-Verbose "End procesing Driver Repo"
     }
 }
-function Install-MSI{  
+function Install-MSI{
 
     begin {
-         Write-Verbose "Begin procesing Install-MSI"  
+         Write-Verbose "Begin procesing Install-MSI"
     }
-  
+
     process {
 
         try {
@@ -1124,7 +1287,7 @@ function Install-MSI{
                 $Arguments += "$TMsiFile"
                 $Arguments += "/qn /norestart"
                 $Arguments += "/log $TLogFile"
-                
+
                 Write-Host "Applying MSI $MsiFile to the Machine"
                 Write-Verbose "Applying MSI Command : MSIEXEC $Arguments"
                 Start-Process "msiexec.exe" -ArgumentList $Arguments -Wait
@@ -1142,15 +1305,15 @@ function Install-MSI{
     }
 
     end {
-         Write-Verbose "End procesing Install-MSI"  
+         Write-Verbose "End procesing Install-MSI"
     }
 }
-function Expand-MSI{  
+function Expand-MSI{
 
     begin {
-         Write-Verbose "Begin procesing Expand-MSI"  
+         Write-Verbose "Begin procesing Expand-MSI"
     }
-  
+
     process {
 
         try {
@@ -1178,14 +1341,14 @@ function Expand-MSI{
                     $FileContent2Delete = "$TmpEMSI\*.*"
                     Remove-Item -Path $FileContent2Delete -Recurse
                 }
-            
+
                 $Arguments = @()
                 $Arguments += "/a"
                 $Arguments += "$TMsiFile"
                 $Arguments += "targetdir=$TmpEMSI"
                 $Arguments += "/qn"
                 $Arguments += "/log $TLogFile"
-                
+
                 Write-Host "Expanding MSI $MsiFile ...."
                 Write-Verbose "Applying MSI Command : MSIEXEC $Arguments"
                 Start-Process "msiexec.exe" -ArgumentList $Arguments -Wait
@@ -1202,7 +1365,7 @@ function Expand-MSI{
     }
 
     end {
-         Write-Verbose "End procesing Expand-MSI"  
+         Write-Verbose "End procesing Expand-MSI"
     }
 }
 function Get-MSIFile {
@@ -1230,12 +1393,12 @@ function Get-MSIFile {
         [Alias('File')]
         [string]$targetFile
     )
-    
+
     begin {
-         Write-Verbose "Begin procesing Get-MSIFile"  
+         Write-Verbose "Begin procesing Get-MSIFile"
          Import-Module BitsTransfer
     }
-  
+
     process {
 
         try {
@@ -1256,7 +1419,7 @@ function Get-MSIFile {
     }
 
     end {
-         Write-Verbose "End procesing Get-MSIFile"  
+         Write-Verbose "End procesing Get-MSIFile"
     }
 }
 
@@ -1267,11 +1430,11 @@ function Get-SurfaceDriver {
         [Alias('Apply')]
         [Boolean]$ApplyDRv = $false
     )
-    
+
     begin {
-         Write-Verbose "Begin procesing Get-SurfaceDriver(Apply=$ApplyDrv)"  
+         Write-Verbose "Begin procesing Get-SurfaceDriver(Apply=$ApplyDrv)"
     }
-  
+
     process {
 
         try {
@@ -1322,7 +1485,7 @@ function Get-SurfaceDriver {
     }
 
     end {
-         Write-Verbose "End procesing Get-SurfaceDriver"  
+         Write-Verbose "End procesing Get-SurfaceDriver"
     }
 }
 function Import-SurfaceDrivers {
@@ -1332,7 +1495,7 @@ function Import-SurfaceDrivers {
     .DESCRIPTION
     This module function allow the import of Surface Driver Set (MSI) from the official external download web site and gather them in an organized way (the repo) so it can be used later by other tools.
     The function held some parameters allowing to apply or expand the driver set on the current machine.
-    
+
     .EXAMPLE
     Import-SurfaceDrivers
 
@@ -1355,7 +1518,7 @@ function Import-SurfaceDrivers {
 
     .PARAMETER Model
     Surface Model targeted for the drivers
-    
+
     Supported Models are :
     - Surface Pro
     - Surface Pro Lte
@@ -1366,7 +1529,7 @@ function Import-SurfaceDrivers {
     - Surface Pro 4
     - Surface Pro 3
 
-    .PARAMETER WindowsVersion    
+    .PARAMETER WindowsVersion
     Targeted Version of Windows 10
     Supported value are listed in the ModelsDB.XML file.
 
@@ -1377,7 +1540,7 @@ function Import-SurfaceDrivers {
         Surface model
             Targeted OS Version
                 MSI File
-    
+
     .PARAMETER  Apply
     Ask to Apply the driver Set on the actual machine
 
@@ -1401,22 +1564,21 @@ function Import-SurfaceDrivers {
         ,
         [Boolean]$Expand = $False
         ,
-        [Boolean]$CheckOnly = $False  
+        [Boolean]$CheckOnly = $False
     )
 
     begin {
         Write-Verbose "Begin procesing Import-SurfaceDrivers"
-        ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+        ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
         $DefaultFromConfigFile = Import-Config
-        $status = $false
     }
-  
+
     process {
 
         # Verifiy the Surface model input
         if ($Model -eq "") {
             if ('SurfaceModel' -in $DefaultFromConfigFile.Keys) {
-                Write-Verbose "Getting Surface Model from Defaults in Config file"  
+                Write-Verbose "Getting Surface Model from Defaults in Config file"
                 $Model = $DefaultFromConfigFile['SurfaceModel']
             }
             else {
@@ -1433,7 +1595,7 @@ function Import-SurfaceDrivers {
         # Verifiy the Surface model input
         if ($RepoPath -eq "") {
             if ('RootRepo' -in $DefaultFromConfigFile.Keys) {
-                Write-Verbose "Getting Repo path from Defaults in Config file"  
+                Write-Verbose "Getting Repo path from Defaults in Config file"
                 $RepoPath = $DefaultFromConfigFile['RootRepo']
             }
             else {
@@ -1441,7 +1603,7 @@ function Import-SurfaceDrivers {
                 return $false
             }
         }
-        
+
         If(!(test-path $RepoPath)) {
             Write-Host "Create $RepoPath"
             New-Item -ItemType Directory -Force -Path $RepoPath | Out-Null
@@ -1455,12 +1617,12 @@ function Import-SurfaceDrivers {
             Write-Host "Check Drivers Repo for $Model for Windows $WindowsVersion"
         }
         else {
-            Write-Host "Check Drivers Repo for $Model"            
+            Write-Host "Check Drivers Repo for $Model"
         }
 
         # Check and prepare the Repo for Model/OS Targeted
         If (Set-DriverRepo -RootRepo $RepoPath -Model $Model) {
-             Write-Verbose "Drivers Repo Checked and Set"  
+             Write-Verbose "Drivers Repo Checked and Set"
         }
         else {
              Write-Verbose "Error while checking Drivers Repo"
@@ -1523,7 +1685,7 @@ function Import-SurfaceDrivers {
                 $Span = New-TimeSpan -Start $Strt -End $End
                 $Min = $Span.Minutes
                 $Sec = $Span.Seconds
-                
+
                 Write-Host "Installed in $Min Min and $Sec Seconds"
             } else {
                 if ($Expand -eq $True) {
@@ -1535,25 +1697,51 @@ function Import-SurfaceDrivers {
                     $Span = New-TimeSpan -Start $Strt -End $End
                     $Min = $Span.Minutes
                     $Sec = $Span.Seconds
-                    
+
                     Write-verbose "MSI Expended in $Min Min and $Sec Seconds"
                 }
             }
-    
+
         }
 
         return $True
     }
 
     end {
-         Write-Verbose "End procesing Import-SurfaceDrivers"  
+         Write-Verbose "End procesing Import-SurfaceDrivers"
     }
+}
+function Get-LatestCU {
+    <#
+    .SYNOPSIS
+
+    .DESCRIPTION
+    Get the latest CU for a giving Windows 10 version
+
+    .EXAMPLE
+    Get-LatestCU -WindowsVersion 1803
+
+    .PARAMETER WindowsVersion
+    Targeted Version of Windows 10
+    Supported value are listed in the ModelsDB.XML file.
+
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [string]$WindowsVersion
+    )
+
+    $CUUrl = (Get-LatestCUUrl($WindowsVersion))
+    Write-Verbose $CUUrl
+    return $CUUrl
+
 }
 
 $ModuleName = "SurfUtil"
 Write-Verbose "Loading $ModuleName Module"
 
-Export-ModuleMember -Function New-USBKey,New-IsoFile,Import-SurfaceDrivers,Import-SurfaceDB,Import-Config
+Export-ModuleMember -Function New-USBKey,New-IsoFile,Import-SurfaceDrivers,Import-SurfaceDB,Import-Config,Get-LatestCU
 
 $ThisModule = $MyInvocation.MyCommand.ScriptBlock.Module
 $ThisModule.OnRemove = { Write-Verbose "Module $ModuleName Unloaded" }

@@ -13,3 +13,14 @@ Describe "Import-SurfaceDrivers" {
         $ret | Should -Be $True
     }
 }
+Describe "Get-LatestCU" {
+
+    ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
+
+    foreach ($OSVersion in $OSReleaseHT.keys) {
+        $ret = Get-LatestCU($OSVersion)
+        It "Is Working for $OSVersion" {
+            $ret | Should -BeLike "http://download.windowsupdate.com/*/msdownload/update/software/*.msu"
+        }
+    }
+}

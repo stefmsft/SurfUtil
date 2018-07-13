@@ -6,4 +6,4 @@ sample-*
 launch.json
 *.iso
 *.wim
-Run-*.txt
+*-eric.*

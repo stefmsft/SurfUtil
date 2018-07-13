@@ -22,14 +22,14 @@ try {
 
 
     $DefaultFromConfigFile = Import-Config
-    ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+    ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
 
     if ($PathToISO -eq "") {
 
         $localp = (Get-Item -Path ".\" -Verbose).FullName
 
         $IsoPath = $DefaultFromConfigFile["RootISO"]
-        if ($IsoPath -eq $null) {
+        if ($null -eq $IsoPath) {
             $IsoPath = "$localp\Iso"
         }
         $PathToISO = $IsoPath
@@ -43,7 +43,7 @@ try {
         $localp = (Get-Item -Path ".\" -Verbose).FullName
 
         $RepoPath = $DefaultFromConfigFile["RootRepo"]
-        if ($RepoPath -eq $null) {
+        if ($null -eq $RepoPath) {
             $RepoPath = "$localp\Repo"
         }
         $DrvRepo = $RepoPath
@@ -88,7 +88,7 @@ try {
 
     if (($TargetSize -lt 4) -Or ($TargetSize -gt 50)) {
         Write-Host -ForegroundColor Red "Use a USB Drive with capacity between 4 and 50 Go";
-        return $False                
+        return $False
     }
 
     Write-Host "Create a BMR Key for [$SurfaceModel] / [$TargetSKU $WindowsVersion]"

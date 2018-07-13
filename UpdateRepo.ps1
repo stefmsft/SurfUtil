@@ -1,11 +1,11 @@
 Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
 
 $DefaultFromConfigFile = Import-Config
-    
+
 $localp = (Get-Item -Path ".\" -Verbose).FullName
 
 $RepoPath = $DefaultFromConfigFile["RootRepo"]
-if ($RepoPath -eq $null) {
+if ($null -eq $RepoPath) {
     $RepoPath = "$localp\Repo"
 }
 
@@ -19,7 +19,7 @@ write-debug "Full Path Repo is : $LocalRepoPathDir"
 try {
 
     Write-Host $VerbosePreference
-    ($SurfModelHT,$OSReleaseHT) = Import-SurfaceDB
+    ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
 
     foreach ($SurfaceModel in $SurfModelHT.keys) {
         Import-SurfaceDrivers -Model $SurfaceModel -CheckOnly $False -RepoPath $LocalRepoPathDir

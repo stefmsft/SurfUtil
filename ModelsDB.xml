@@ -1,7 +1,7 @@
 <ModelsDB>
     <SurfacesModels>
         <Surface ID='Surface Pro'>
-            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=55484'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=55484' searchpattern="*SurfacePro_WIFI_Win10*.msi">
             </Drivers>
             <OS MinSupported='RS2'>
             </OS>
@@ -50,8 +50,8 @@
         </Surface>
     </SurfacesModels>
     <OSRelease>
-        <TH1 ReleaseCode='1507' internalCode=''></TH1>
-        <TH2 ReleaseCode='1511' internalCode='10586'></TH2>
+        <TH1 ReleaseCode='1507' internalCode='10240' Supported='N'></TH1>
+        <TH2 ReleaseCode='1511' internalCode='10586' Supported='N'></TH2>
         <RS1 ReleaseCode='1607' internalCode='14393'></RS1>
         <RS2 ReleaseCode='1703' internalCode='15063'></RS2>
         <RS3 ReleaseCode='1709' internalCode='16299'></RS3>
