@@ -49,6 +49,14 @@
             </OS>
         </Surface>
     </SurfacesModels>
+    <SurfacesTools>
+        <Tool ID='Surface Dock Updater'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/details.aspx?id=46703' searchpattern="*Surface_Dock_Updater_v*.msi">
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Tool>
+    </SurfacesTools>
     <OSRelease>
         <TH1 ReleaseCode='1507' internalCode='10240' Supported='N'></TH1>
         <TH2 ReleaseCode='1511' internalCode='10586' Supported='N'></TH2>

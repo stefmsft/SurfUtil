@@ -6,7 +6,8 @@ Param(  [Parameter( Mandatory=$true)]
         [string]$PathToISO,
         [String]$DrvRepo,
         [string]$WindowsEdition,
-        [bool]$MkISO
+        [bool]$MkISO,
+        [bool]$Log
     )
 
 Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
@@ -18,6 +19,16 @@ try {
     if ($IsAdmin -eq $False) {
         Write-Host -ForegroundColor Red "Please use this script in an elevated Admin context"
         return $false
+    }
+
+    if ($Log -eq $true) {
+
+        $OldVerboseLevel = $VerbosePreference
+        $OldDebugLevel = $DebugPreference
+
+        $VerbosePreference = "Continue"
+        $DebugPreference = "Continue"
+
     }
 
 
@@ -94,11 +105,20 @@ try {
     Write-Host "Create a BMR Key for [$SurfaceModel] / [$TargetSKU $WindowsVersion]"
 
 
-    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU"
-    New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU
+    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log"
+    New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log
 
 }
 catch [System.Exception] {
     Write-Host -ForegroundColor Red $_.Exception.Message;
     return $False
+}
+finally {
+    if ($Log -eq $true) {
+
+        write-verbose "Re establish initial verbosity"
+        $VerbosePreference = $OldVerboseLevel
+        $DebugPreference = $OldDebugLevel
+
+    }
 }
