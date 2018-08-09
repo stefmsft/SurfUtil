@@ -8,6 +8,7 @@ $DebugPreference = "Continue"
 $VerbosePreference = "Continue"
 
 Describe "Import-SurfaceDrivers" {
+#Commentaire
     $ret = Import-SurfaceDrivers -Model "Surface Pro" -CheckOnly $True
     It "Is Ready For Test" {
         $ret | Should -Be $True

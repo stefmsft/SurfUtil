@@ -6,4 +6,6 @@ sample-*
 launch.json
 *.iso
 *.wim
-*-eric.*
+WindowssCU
+*kb*.msu
+*.pptx

@@ -38,13 +38,13 @@ function Get-LatestCUUrl{
     Author Eric Scherlinger
         Written to enhance SurfUtil processing
     .EXAMPLE
-    Get-LatestCU
+    Get-LatestCUURL
     .EXAMPLE
-    Get-LatestCU -TargetOS "1607"
+    Get-LatestCUURL -TargetOS "1607"
     .PARAMETER TargetOS
     Enter the Win 10 Version number (1507,1511,1607,...) by default we use the latest version.
     .NOTES
-    NAME:  Get-LatestCU
+    NAME:  Get-LatestCUURL
     AUTHOR: Eric Scherlinger
     LASTEDIT: 13/07/2018
     #>
@@ -206,7 +206,6 @@ public unsafe static void Create(string Path, object Stream, int BlockSize, int 
     $Target
     }
 }
-
 function Set-USBKey {
     <#
     .SYNOPSIS
@@ -291,14 +290,17 @@ function Set-USBKey {
             $ISODir = get-childitem $SrcISO
             $ListMatchingISO = $ISODir | where-object {$_.Name -like $ISOFilter}
             if ($ListMatchingISO.count -ne 0) {
+                write-verbose "Found list of matching iso $ListMatchingISO"
                 foreach ($ISOfile in $ListMatchingISO) {
                     write-verbose "Found $ISOFile"
-                    $SrcISO = "$SrcISO\$ISOfile"
+                    $ResultISO = "$SrcISO\$ISOfile"
                 }
             }
 
+            write-verbose "Selected $ResultISO to open"
+
             $MountedLetter = ""
-            $MountedISO = Mount-DiskImage -ImagePath $SrcISO -PassThru
+            $MountedISO = Mount-DiskImage -ImagePath $ResultISO -PassThru
             $MountedLetter = ($MountedISO | Get-Volume).DriveLetter
             $IsoMounted = $true
             Write-Verbose "ISO mounted on $MountedLetter"
@@ -307,8 +309,8 @@ function Set-USBKey {
             Write-Verbose "Checking $TargetInstalWim"
             if (!(Test-Path $TargetInstalWim)) {
                 Write-Host -ForegroundColor Red "The mounted ISO doesn't hold a valid Wim to use";
-                Write-Verbose "Dismounting $SrcISO"
-                DisMount-DiskImage -ImagePath $SrcISO
+                Write-Verbose "Dismounting $ResultISO"
+                DisMount-DiskImage -ImagePath $ResultISO
                 $IsoMounted = $false
                 return $False
             }
@@ -363,14 +365,18 @@ function Set-USBKey {
             write-host "    1 - Format the target and copy windows files"
             write-host "    2 - Prepare the Wim File"
             write-host "    3 - Inject Surface Drivers"
-#            write-host "    4 - Apply latest Windows Update"
+            write-host "    4 - Apply latest Windows Update"
             write-host "    5 - Optimize and copy the wim to the Key"
             if ($MakeISO -eq $True) {write-host "    6 - Generate an ISO copy of your USB Key"}
             write-host ""
             write-host "Please, don't interrupt the script ...."
 
-            $Strt = Get-Date
+            $StrtAll = Get-Date
             [System.Collections.ArrayList]$JbLst = @()
+
+######
+# Phase 1 - Throw as much parallel job as we can
+######
 
 ######
 # Job 1 Format target and copy windows file
@@ -387,6 +393,7 @@ function Set-USBKey {
                         write-verbose "Call Job 1 ($TDrv,$MISO,$SurfaceModel,$TOS)"
 
                         $Strt = Get-Date
+                        write-host "========="
                         write-host ":: Step 1"
                         write-host "========="
                         write-host "Formatting drive $TDrv ....."
@@ -429,6 +436,7 @@ function Set-USBKey {
                         write-verbose "Call Job 2 ($SrcWimLetter,$TDir,$TargetSKU)"
 
                         $Strt = Get-Date
+                        write-host "========="
                         write-host ":: Step 2"
                         write-host "========="
 
@@ -438,7 +446,8 @@ function Set-USBKey {
                         copy-item $SrcWimFile -Destination $DstWimFile
                         Set-ItemProperty $DstWimFile -name IsReadOnly -value $false
                         $skul = Get-WindowsImage -ImagePath $DstWimFile
-                        $sku = $skul | where-object {$_.imagename.tolower() -eq $TargetSKU.tolower()}
+                        #Get the first SKU the match the TargetedSku - Be careful on how you define sku label in the config.xml
+                        $sku = ($skul | where-object {$_.imagename.tolower() -like $TargetSKU.tolower()})[0]
                         $indx = $sku.imageindex
                         Write-verbose "Found [$TargetSKU] at index $indx"
 
@@ -488,6 +497,7 @@ function Set-USBKey {
                         $VerbosePreference=$v
                         write-verbose "Call Job 3 ($Model,$os,$LocalRepoPathDir,$IDMPath)"
                         $Strt = Get-Date
+                        write-host "========="
                         write-host ":: Step 3"
                         write-host "========="
 
@@ -524,6 +534,58 @@ function Set-USBKey {
 
             }
 
+######
+# Job 4 Gather the latest CU for the targeted Windows Version
+######
+
+            if ($Global:SkipJ4 -ne $true) {
+
+                $localp = (Get-Item -Path ".\" -Verbose).FullName
+                $mp = "$localp\SurfUtil.psm1"
+
+                $localp = (Get-Item -Path ".\" -Verbose).FullName
+                $LCUPathDir = "$localp\WindowsCU"
+
+                Write-Verbose "Firing Up Job 4 ..."
+                $JobGetCU = Start-Job -Name "Job4" -ScriptBlock {
+
+                    param ([String] $os, [String] $LocalCUPathDir, [String] $IDMPath, [String] $v)
+
+                        $VerbosePreference=$v
+                        write-verbose "Call Job 4 ($os,$LocalCUPathDir,$IDMPath)"
+                        $Strt = Get-Date
+                        write-host "========="
+                        write-host ":: Step 4"
+                        write-host "========="
+
+                        $ret = import-module $IDMPath
+
+                        Write-Verbose "Calling : Get-LatestCU -WindowsVersion $os -LocalCUDir $LocalCUPathDir"
+                        $ret = Get-LatestCU -WindowsVersion $os -LocalCUDir $LocalCUPathDir
+
+                        if ($null -eq $ret) {
+                            write-host "Step 4 : Operation Failed"
+                            write-host "         Gathering CU failed"
+                        }
+
+                        $End = Get-Date
+                        $Span = New-TimeSpan -Start $Strt -End $End
+                        $Min = $Span.Minutes
+                        $Sec = $Span.Seconds
+                        Write-Host "CU gathered in $Min Min and $Sec Seconds"
+                        write-host "============="
+                        write-host ":: End Step 4"
+                        write-host "============="
+
+                        return $ret
+
+                } -ArgumentList $TargetedOS ,$LCUPathDir , $mp, $VerbosePreference
+
+            } else {
+
+                Write-verbose "Job 4 Skipped"
+            }
+
             Wait-Job $JbLst | Out-Null
 
             if ($VerbosePreference -eq "Continue") {
@@ -543,12 +605,23 @@ function Set-USBKey {
                 }
             }
 
+######
+# Phase 2 - Start some synchrone work (Wim manipulation)
+######
+            $StatusInfo = "Success"
+
             if ($WimIndx -ge 0) {
 
                 ## Preliminary test on the ExpandedMSIDir to avoid the useless mount of the wim after
-                [String]$DrvExpandRoot = (Join-Path -Path $env:TMP -ChildPath '\ExpandedMSIDir\SurfacePlatformInstaller')
+                #Bug Fix - Corp changed the structure of the expanded dir
+                #          No more PlateFormInstaller directory but a SurfaceUpdate directory
+                #          To avaoid futur break I'm just checking that the dir has contents
+                [String]$DrvExpandRoot = (Join-Path -Path $env:TMP -ChildPath '\ExpandedMSIDir')
 
-                If(test-path $DrvExpandRoot) {
+                $ExpDirCnt = (Get-ChildItem -Path $DrvExpandRoot).count
+                Write-verbose "Found $ExpDirCnt item in the expanded MSI root directory"
+
+                If($ExpDirCnt -gt 0) {
                     ## Mount Wim
                     [String]$MntWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install.wim')
                     [String]$LogPath = (Join-Path -Path $TmpTDir -ChildPath 'DISM.log')
@@ -566,8 +639,30 @@ function Set-USBKey {
                     Add-WindowsDriver -Path $MntDir -Driver $DrvExpandRoot -Recurse -LogPath $LogPath | Out-Null
                     Write-Host "Drivers injected in the new Wim"
                     write-verbose "Add the Driver Readme.txt to the USB Key"
-                    $ReadMe = "$DrvExpandRoot\ReadMe.txt"
-                    Copy-Item -Path $ReadMe -Destination ($Drv+":\ReadMe.txt")
+                    $ReadMe = (Get-ChildItem -Recurse -Path $DrvExpandRoot -filter ReadMe.txt).FullName
+
+                    if (-not ([string]::IsNullOrEmpty($ReadMe))) {
+
+                        Copy-Item -Path $ReadMe -Destination ($Drv+":\ReadMe.txt")
+                    }
+
+                    ## Inject the latest CU
+                    if ($Global:SkipJ4 -ne $true) {
+                        Wait-Job $JobGetCU | Out-Null
+                        $CUFile = Receive-Job $JobGetCU
+                        Write-Verbose "CU File is $CUFile"
+
+                        if (Test-Path $CUFile) {
+
+                            Add-WindowsPackage -Path $MntDir -PackagePath $CUFile -PreventPending -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                            Write-Host "Latest Cumulative Update injected in the new Wim"
+
+                        } else {
+
+                            Write-Host "No Cumulative file found - Nothing to apply"
+
+                        }
+                    }
 
                     ## Unmount and save servicing changes to the image
                     if ($Discard -eq $true) {
@@ -580,6 +675,7 @@ function Set-USBKey {
                 } else {
 
                     $Discard =$true
+                    $StatusInfo = "Job 3 did not correctly expand the drivers in [$DrvExpandRoot]"
 
                 }
 
@@ -588,6 +684,10 @@ function Set-USBKey {
                 if ($Discard -eq $true) {
 
                     $CompactName = "ERROR"
+                    if ($StatusInfo -eq "Success") {
+
+                        $StatusInfo = "Something went wrong with the Drivers Injection or Wim mounting"
+                    }
                 } else {
 
                     $CompactName = "BMR-" + $SurfaceModel.replace(" ","").toupper() + $TargetedOS
@@ -597,10 +697,14 @@ function Set-USBKey {
                     [String]$FinalSwmFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\install.swm')
                     $ret = Split-WindowsImage -FileSize 3500 -ImagePath $ExptWimFile -SplitImagePath $FinalSwmFile -CheckIntegrity -ScratchDirectory $ScrtchDir
                 }
+            } else {
+
+                $CompactName = "ERROR"
+                $StatusInfo = "Job 2 did not find a valid index for [$TSku]"
             }
 
-            Write-Verbose "Dismounting $SrcISO"
-            DisMount-DiskImage -ImagePath $SrcISO
+            Write-Verbose "Dismounting $ResultISO"
+            DisMount-DiskImage -ImagePath $ResultISO
             $IsoMounted = $false
 
             # Generate ISO file
@@ -614,9 +718,9 @@ function Set-USBKey {
             $TagFileName = $Drv+":\$CompactName.tag"
             Write-Host "Tagging with file $TagFileName"
 
-            New-Item $TagFileName -type file
+            New-Item $TagFileName -type file -value $StatusInfo
             $End = Get-Date
-            $Span = New-TimeSpan -Start $Strt -End $End
+            $Span = New-TimeSpan -Start $StrtAll -End $End
             $Min = $Span.Minutes
             $Sec = $Span.Seconds
             if ($Discard -ne $true) {
@@ -633,7 +737,9 @@ function Set-USBKey {
             } else {
                 Write-Host "Something wrong happened"
                 Write-Host "It took $Min Min and $Sec Seconds to process"
-                Write-Host "Check the logs"
+                Write-Host "Check the logs in $env:TMP\ExpandedMSIDir"
+                write-host "            or in $env:TMP\Wimdir\DISM.log"
+                write-Host "Or run the script with -Log $True"
 
                 $Global:KeepExpandedDir = $true
                 $Global:KeepDriversFile = $true
@@ -650,7 +756,7 @@ function Set-USBKey {
             # Check if the ISO need to be dismounted
             if ($IsoMounted -eq $true) {
                 Write-Verbose "Dismounting ISO after Exception"
-                DisMount-DiskImage -ImagePath $SrcISO
+                DisMount-DiskImage -ImagePath $ResultISO
             }
             # Check if the Wim need to be dismounted
             if ($WimMounted -eq $true) {
@@ -658,7 +764,8 @@ function Set-USBKey {
                 Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Discard
             }
             #Do some cleaning
-            Get-Job | Remove-Job
+            Get-Job | Receive-Job
+            Remove-Job *
             # Cleanup the misc Temp dir except we specify to keep them for debug purpose
             if ($Global:KeepExpandedDir -ne $true) {
 
@@ -793,14 +900,19 @@ function New-USBKey {
         ,
         [Alias('TargetSKU')]
         [string]$TrgtSKU
+        ,
+        [Alias('Log')]
+        [string]$LogAsk
     )
 
     begin {
-        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU)"
+        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,Log=$LogAsk)"
 
         $Global:SkipJ1 = $False
         $Global:SkipJ2 = $False
         $Global:SkipJ3 = $False
+        $Global:SkipJ4 = $False
+
         $Global:KeepExpandedDir = $false
         $Global:KeepDriversFile = $false
         $Global:KeepWimDir = $false
@@ -810,10 +922,19 @@ function New-USBKey {
 
         try {
 
+            #Set logging to verbose if asked
+            if ($LogAsk -eq $True) {
+
+                $VerbosePreference = "Continue"
+                $DebugPreference = "Continue"
+
+            }
+
             #Display in verbose the Skip Jobs flags
             Write-Verbose "Skip Job 1 : $Global:SkipJ1"
             Write-Verbose "Skip Job 2 : $Global:SkipJ2"
             Write-Verbose "Skip Job 3 : $Global:SkipJ3"
+            Write-Verbose "Skip Job 4 : $Global:SkipJ4"
 
             Write-Verbose "Verbosity : $VerbosePreference"
 
@@ -1405,7 +1526,7 @@ function Get-MSIFile {
 
             $FullTP = resolve-path $TargetPath
             $FulltargetFile = "$FullTP\$TargetFile"
-            write-host $FulltargetFile
+            write-verbose $FulltargetFile
 
             Start-BitsTransfer -Source $url -Destination $FulltargetFile
 
@@ -1637,7 +1758,9 @@ function Import-SurfaceDrivers {
         # Then if any exist (should always be true), we gather the local picture of the Repo
         if ($WindowsVersion -ne "") {
             $status = Get-RemoteDriversInfo -DrvModel $Model -OSTarget $WindowsVersion
+            Write-Debug "Sta tus of Get-RemoteDriversInfo $status"
             $status = Get-LocalDriversInfo -RootRepo $RepoPath -DrvModel $Model -OSTarget $WindowsVersion
+            Write-Debug "Sta tus of Get-LocalDriversInfo $status"
             if ($Global:DrvInfo.Count -eq 0) {
                 Write-Host ">>>   Drivers not found for $WindowsVersion"
                 return $false
@@ -1729,12 +1852,52 @@ function Get-LatestCU {
     [CmdletBinding()]
     param
     (
-        [string]$WindowsVersion
+        [string]$WindowsVersion,
+        [string]$LocalCUDir=".\WindowsCU"
     )
 
     $CUUrl = (Get-LatestCUUrl($WindowsVersion))
     Write-Verbose $CUUrl
-    return $CUUrl
+
+    # Verify if the Local dir for CU is present
+    write-verbose "Testing if $LocalCUDir exists"
+    If(!(test-path $LocalCUDir)) {
+
+        write-verbose "Create $LocalCUDir directory"
+        New-Item -ItemType Directory -Force -Path $LocalCUDir | out-null
+
+    }
+
+    #Create the local name for the CSU
+    #Scheme : Window-XXXX-KBXXXXXXXXXX-X64.msu
+
+    $sp1 = $CUUrl -split '-'
+    $KBName = $sp1[1]
+    $Filename = "Windows-$WindowsVersion-$KBName-X64.msu"
+    Write-Verbose "Local filename will be : $Filename"
+
+    $FullName = "$LocalCUDir\$Filename"
+
+    If(!(test-path $FullName)) {
+
+        #download the Msu file
+        $Strt = Get-Date
+        Write-Host "Start Downloading latest CU .................... "
+
+        Get-MSIFile -Link $CUUrl -LPath $LocalCUDir -File $Filename
+        $End = Get-Date
+        $Span = New-TimeSpan -Start $Strt -End $End
+        $Min = $Span.Minutes
+        $Sec = $Span.Seconds
+
+        Write-Host "Downloaded in $Min Min and $Sec Seconds"
+    } else {
+
+        Write-Host "Latest CU for $WindowsVersion already present locally"
+    }
+
+
+    return $FullName
 
 }
 
