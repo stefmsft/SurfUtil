@@ -19,9 +19,9 @@ Describe "Get-LatestCU" {
     ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
 
     foreach ($OSVersion in $OSReleaseHT.keys) {
-        $ret = Get-LatestCU($OSVersion)
+        $ret = Get-LatestCU -WindowsVersion $OSVersion -CkeckOnly $True
         It "Is Working for $OSVersion" {
-            $ret | Should -BeLike "http://download.windowsupdate.com/*/msdownload/update/software/*.msu"
+            $ret | Should -BeLike "*KB*.msu"
         }
     }
 }

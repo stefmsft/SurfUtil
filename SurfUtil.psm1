@@ -1853,7 +1853,8 @@ function Get-LatestCU {
     param
     (
         [string]$WindowsVersion,
-        [string]$LocalCUDir=".\WindowsCU"
+        [string]$LocalCUDir=".\WindowsCU",
+        [bool]$CkeckOnly=$false
     )
 
     $CUUrl = (Get-LatestCUUrl($WindowsVersion))
