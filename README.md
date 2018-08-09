@@ -135,7 +135,18 @@ https://github.com/stefmsft/SurfUtil.git
     * Powershell V5
 
 3.	Latest releases
-    1.0
+
+    Release 1.1
+
+    This release include :
+    - A new *-Log $True* parameter to MakeBMR.ps1 to ease debugging problems
+    - MakeBMR.ps1 Automatically gather the latest Cumulative Update of the OS in the WIM
+    - A search pattern attribute (*searchpattern=*) is added in the MadelDB.xml file for the Drivers tag
+
+    Release 1.0
+
+    This first release provide :
+    - The first 3 ps1 script described above (MakeBMR,UpdateMySurface,UpdateRepo)
 
 4.	Artefacts
     * SurfUtil.psm1

@@ -108,6 +108,15 @@ try {
     Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log"
     New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log
 
+    if (($SurfaceModel.tolower() -eq "surface pro") -or ($SurfaceModel.tolower() -eq "surface pro lte")) {
+        write-host "*******************************************************************"
+        write-host "* Warning information (Surface Pro/LTE only):                                           *"
+        write-host "* Verify that the version of the Surface System Aggregator        *"
+        write-host "* firmware of the targeted surface is in version v234.2110.1.0    *"
+        write-host "* or greater before using this key                                *"
+        write-host "*******************************************************************"
+    }
+
 }
 catch [System.Exception] {
     Write-Host -ForegroundColor Red $_.Exception.Message;
