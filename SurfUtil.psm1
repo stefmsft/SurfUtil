@@ -38,13 +38,13 @@ function Get-LatestCUUrl{
     Author Eric Scherlinger
         Written to enhance SurfUtil processing
     .EXAMPLE
-    Get-LatestCU
+    Get-LatestCUURL
     .EXAMPLE
-    Get-LatestCU -TargetOS "1607"
+    Get-LatestCUURL -TargetOS "1607"
     .PARAMETER TargetOS
     Enter the Win 10 Version number (1507,1511,1607,...) by default we use the latest version.
     .NOTES
-    NAME:  Get-LatestCU
+    NAME:  Get-LatestCUURL
     AUTHOR: Eric Scherlinger
     LASTEDIT: 13/07/2018
     #>
@@ -290,14 +290,17 @@ function Set-USBKey {
             $ISODir = get-childitem $SrcISO
             $ListMatchingISO = $ISODir | where-object {$_.Name -like $ISOFilter}
             if ($ListMatchingISO.count -ne 0) {
+                write-verbose "Found list of matching iso $ListMatchingISO"
                 foreach ($ISOfile in $ListMatchingISO) {
                     write-verbose "Found $ISOFile"
-                    $SrcISO = "$SrcISO\$ISOfile"
+                    $ResultISO = "$SrcISO\$ISOfile"
                 }
             }
 
+            write-verbose "Selected $ResultISO to open"
+
             $MountedLetter = ""
-            $MountedISO = Mount-DiskImage -ImagePath $SrcISO -PassThru
+            $MountedISO = Mount-DiskImage -ImagePath $ResultISO -PassThru
             $MountedLetter = ($MountedISO | Get-Volume).DriveLetter
             $IsoMounted = $true
             Write-Verbose "ISO mounted on $MountedLetter"
@@ -306,8 +309,8 @@ function Set-USBKey {
             Write-Verbose "Checking $TargetInstalWim"
             if (!(Test-Path $TargetInstalWim)) {
                 Write-Host -ForegroundColor Red "The mounted ISO doesn't hold a valid Wim to use";
-                Write-Verbose "Dismounting $SrcISO"
-                DisMount-DiskImage -ImagePath $SrcISO
+                Write-Verbose "Dismounting $ResultISO"
+                DisMount-DiskImage -ImagePath $ResultISO
                 $IsoMounted = $false
                 return $False
             }
@@ -362,13 +365,13 @@ function Set-USBKey {
             write-host "    1 - Format the target and copy windows files"
             write-host "    2 - Prepare the Wim File"
             write-host "    3 - Inject Surface Drivers"
-#            write-host "    4 - Apply latest Windows Update"
+            write-host "    4 - Apply latest Windows Update"
             write-host "    5 - Optimize and copy the wim to the Key"
             if ($MakeISO -eq $True) {write-host "    6 - Generate an ISO copy of your USB Key"}
             write-host ""
             write-host "Please, don't interrupt the script ...."
 
-            $Strt = Get-Date
+            $StrtAll = Get-Date
             [System.Collections.ArrayList]$JbLst = @()
 
 ######
@@ -390,6 +393,7 @@ function Set-USBKey {
                         write-verbose "Call Job 1 ($TDrv,$MISO,$SurfaceModel,$TOS)"
 
                         $Strt = Get-Date
+                        write-host "========="
                         write-host ":: Step 1"
                         write-host "========="
                         write-host "Formatting drive $TDrv ....."
@@ -432,6 +436,7 @@ function Set-USBKey {
                         write-verbose "Call Job 2 ($SrcWimLetter,$TDir,$TargetSKU)"
 
                         $Strt = Get-Date
+                        write-host "========="
                         write-host ":: Step 2"
                         write-host "========="
 
@@ -492,6 +497,7 @@ function Set-USBKey {
                         $VerbosePreference=$v
                         write-verbose "Call Job 3 ($Model,$os,$LocalRepoPathDir,$IDMPath)"
                         $Strt = Get-Date
+                        write-host "========="
                         write-host ":: Step 3"
                         write-host "========="
 
@@ -526,6 +532,58 @@ function Set-USBKey {
 
                 Write-verbose "Job 3 Skipped"
 
+            }
+
+######
+# Job 4 Gather the latest CU for the targeted Windows Version
+######
+
+            if ($Global:SkipJ4 -ne $true) {
+
+                $localp = (Get-Item -Path ".\" -Verbose).FullName
+                $mp = "$localp\SurfUtil.psm1"
+
+                $localp = (Get-Item -Path ".\" -Verbose).FullName
+                $LCUPathDir = "$localp\WindowsCU"
+
+                Write-Verbose "Firing Up Job 4 ..."
+                $JobGetCU = Start-Job -Name "Job4" -ScriptBlock {
+
+                    param ([String] $os, [String] $LocalCUPathDir, [String] $IDMPath, [String] $v)
+
+                        $VerbosePreference=$v
+                        write-verbose "Call Job 4 ($os,$LocalCUPathDir,$IDMPath)"
+                        $Strt = Get-Date
+                        write-host "========="
+                        write-host ":: Step 4"
+                        write-host "========="
+
+                        $ret = import-module $IDMPath
+
+                        Write-Verbose "Calling : Get-LatestCU -WindowsVersion $os -LocalCUDir $LocalCUPathDir"
+                        $ret = Get-LatestCU -WindowsVersion $os -LocalCUDir $LocalCUPathDir
+
+                        if ($null -eq $ret) {
+                            write-host "Step 4 : Operation Failed"
+                            write-host "         Gathering CU failed"
+                        }
+
+                        $End = Get-Date
+                        $Span = New-TimeSpan -Start $Strt -End $End
+                        $Min = $Span.Minutes
+                        $Sec = $Span.Seconds
+                        Write-Host "CU gathered in $Min Min and $Sec Seconds"
+                        write-host "============="
+                        write-host ":: End Step 4"
+                        write-host "============="
+
+                        return $ret
+
+                } -ArgumentList $TargetedOS ,$LCUPathDir , $mp, $VerbosePreference
+
+            } else {
+
+                Write-verbose "Job 4 Skipped"
             }
 
             Wait-Job $JbLst | Out-Null
@@ -588,6 +646,24 @@ function Set-USBKey {
                         Copy-Item -Path $ReadMe -Destination ($Drv+":\ReadMe.txt")
                     }
 
+                    ## Inject the latest CU
+                    if ($Global:SkipJ4 -ne $true) {
+                        Wait-Job $JobGetCU | Out-Null
+                        $CUFile = Receive-Job $JobGetCU
+                        Write-Verbose "CU File is $CUFile"
+
+                        if (Test-Path $CUFile) {
+
+                            Add-WindowsPackage -Path $MntDir -PackagePath $CUFile -PreventPending -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                            Write-Host "Latest Cumulative Update injected in the new Wim"
+
+                        } else {
+
+                            Write-Host "No Cumulative file found - Nothing to apply"
+
+                        }
+                    }
+
                     ## Unmount and save servicing changes to the image
                     if ($Discard -eq $true) {
                         Write-Host "Discard Changes and Dismounting Image..."
@@ -627,8 +703,8 @@ function Set-USBKey {
                 $StatusInfo = "Job 2 did not find a valid index for [$TSku]"
             }
 
-            Write-Verbose "Dismounting $SrcISO"
-            DisMount-DiskImage -ImagePath $SrcISO
+            Write-Verbose "Dismounting $ResultISO"
+            DisMount-DiskImage -ImagePath $ResultISO
             $IsoMounted = $false
 
             # Generate ISO file
@@ -644,7 +720,7 @@ function Set-USBKey {
 
             New-Item $TagFileName -type file -value $StatusInfo
             $End = Get-Date
-            $Span = New-TimeSpan -Start $Strt -End $End
+            $Span = New-TimeSpan -Start $StrtAll -End $End
             $Min = $Span.Minutes
             $Sec = $Span.Seconds
             if ($Discard -ne $true) {
@@ -680,7 +756,7 @@ function Set-USBKey {
             # Check if the ISO need to be dismounted
             if ($IsoMounted -eq $true) {
                 Write-Verbose "Dismounting ISO after Exception"
-                DisMount-DiskImage -ImagePath $SrcISO
+                DisMount-DiskImage -ImagePath $ResultISO
             }
             # Check if the Wim need to be dismounted
             if ($WimMounted -eq $true) {
@@ -835,6 +911,8 @@ function New-USBKey {
         $Global:SkipJ1 = $False
         $Global:SkipJ2 = $False
         $Global:SkipJ3 = $False
+        $Global:SkipJ4 = $False
+
         $Global:KeepExpandedDir = $false
         $Global:KeepDriversFile = $false
         $Global:KeepWimDir = $false
@@ -856,6 +934,7 @@ function New-USBKey {
             Write-Verbose "Skip Job 1 : $Global:SkipJ1"
             Write-Verbose "Skip Job 2 : $Global:SkipJ2"
             Write-Verbose "Skip Job 3 : $Global:SkipJ3"
+            Write-Verbose "Skip Job 4 : $Global:SkipJ4"
 
             Write-Verbose "Verbosity : $VerbosePreference"
 
@@ -1447,7 +1526,7 @@ function Get-MSIFile {
 
             $FullTP = resolve-path $TargetPath
             $FulltargetFile = "$FullTP\$TargetFile"
-            write-host $FulltargetFile
+            write-verbose $FulltargetFile
 
             Start-BitsTransfer -Source $url -Destination $FulltargetFile
 
@@ -1774,18 +1853,18 @@ function Get-LatestCU {
     param
     (
         [string]$WindowsVersion,
-        [string]$LocalPathDir=".\WindowsCU"
+        [string]$LocalCUDir=".\WindowsCU"
     )
 
     $CUUrl = (Get-LatestCUUrl($WindowsVersion))
     Write-Verbose $CUUrl
 
     # Verify if the Local dir for CU is present
-    write-verbose "Testing if $LocalPathDir exists"
-    If(!(test-path $LocalPathDir)) {
+    write-verbose "Testing if $LocalCUDir exists"
+    If(!(test-path $LocalCUDir)) {
 
-        write-verbose "Create $LocalPathDir directory"
-        New-Item -ItemType Directory -Force -Path $LocalPathDir | out-null
+        write-verbose "Create $LocalCUDir directory"
+        New-Item -ItemType Directory -Force -Path $LocalCUDir | out-null
 
     }
 
@@ -1797,7 +1876,7 @@ function Get-LatestCU {
     $Filename = "Windows-$WindowsVersion-$KBName-X64.msu"
     Write-Verbose "Local filename will be : $Filename"
 
-    $FullName = "$LocalPathDir\$Filename"
+    $FullName = "$LocalCUDir\$Filename"
 
     If(!(test-path $FullName)) {
 
@@ -1805,7 +1884,7 @@ function Get-LatestCU {
         $Strt = Get-Date
         Write-Host "Start Downloading latest CU .................... "
 
-        Get-MSIFile -Link $CUUrl -LPath $LocalPathDir -File $Filename
+        Get-MSIFile -Link $CUUrl -LPath $LocalCUDir -File $Filename
         $End = Get-Date
         $Span = New-TimeSpan -Start $Strt -End $End
         $Min = $Span.Minutes
@@ -1818,7 +1897,7 @@ function Get-LatestCU {
     }
 
 
-    return $Filename
+    return $FullName
 
 }
 
