@@ -1854,7 +1854,7 @@ function Get-LatestCU {
     (
         [string]$WindowsVersion,
         [string]$LocalCUDir=".\WindowsCU",
-        [bool]$CkeckOnly=$false
+        [bool]$CheckOnly=$false
     )
 
     $CUUrl = (Get-LatestCUUrl($WindowsVersion))
@@ -1881,21 +1881,25 @@ function Get-LatestCU {
 
     If(!(test-path $FullName)) {
 
-        #download the Msu file
-        $Strt = Get-Date
-        Write-Host "Start Downloading latest CU .................... "
+        if ($CheckOnly -ne $True) {
 
-        Get-MSIFile -Link $CUUrl -LPath $LocalCUDir -File $Filename
-        $End = Get-Date
-        $Span = New-TimeSpan -Start $Strt -End $End
-        $Min = $Span.Minutes
-        $Sec = $Span.Seconds
+                #download the Msu file
+                $Strt = Get-Date
+                Write-Host "Start Downloading latest CU .................... "
 
-        Write-Host "Downloaded in $Min Min and $Sec Seconds"
-    } else {
+                Get-MSIFile -Link $CUUrl -LPath $LocalCUDir -File $Filename
+                $End = Get-Date
+                $Span = New-TimeSpan -Start $Strt -End $End
+                $Min = $Span.Minutes
+                $Sec = $Span.Seconds
 
-        Write-Host "Latest CU for $WindowsVersion already present locally"
-    }
+                Write-Host "Downloaded in $Min Min and $Sec Seconds"
+            } else {
+
+                Write-Host "Latest CU for $WindowsVersion already present locally"
+            }
+
+        }
 
 
     return $FullName
