@@ -1,3 +1,165 @@
+function Sync-WindowsISO {
+    <#
+    .SYNOPSIS
+    TODO
+    .DESCRIPTION
+    TODO
+    .EXAMPLE
+    TODO
+    .EXAMPLE
+    TODO
+    .PARAMETER x
+    TODO
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Alias('ISO')]
+        [string]$ISOPath
+        ,
+        [Alias('OSV')]
+        [string]$TargetedOS
+        ,
+        [Alias('TargetSKU')]
+        [string]$TSku
+        ,
+        [Alias('Log')]
+        [bool]$Verbosity
+    )
+
+    begin {
+        Write-Verbose "Begin procesing Sync-WindowsISO($ISOPath,$TargetedOS,'$TSku',Log=$Verbosity)"
+    }
+
+    process {
+
+        try {
+
+            if ($Verbosity -eq $true) {
+
+                $OldVerboseLevel = $VerbosePreference
+                $OldDebugLevel = $DebugPreference
+
+                $VerbosePreference = "Continue"
+                $DebugPreference = "Continue"
+
+            }
+
+            #Check on the Source
+            If(!(test-path $ISOPath)) {
+                write-host "$ISOPath directory doesn't exist"
+                return $False
+            }
+
+            $FoundISO = $False
+
+            $ISOFilter = "*windows_10*_$TargetedOS*"
+            Write-Verbose "Filtering ISO directory on $ISOFilter"
+            $ISODir = get-childitem $ISOPath
+            $ListMatchingISO = $ISODir | where-object {$_.Name -like $ISOFilter}
+            if ($ListMatchingISO.count -ne 0) {
+                write-verbose "Found list of matching iso $ListMatchingISO"
+                foreach ($ISOfile in $ListMatchingISO) {
+                    write-verbose "Found $ISOFile"
+                    $FoundISO = $true
+                    $ISOName = ($ISOFile.name -split '\.')[0]
+                    $ResultISO = "$ISOPath\$ISOfile"
+                }
+            } else {
+                write-host "No ISO found in $ISOPath"
+                write-host "Please provide ISO files in $ISOPath"
+                return $False
+            }
+
+            if (!$FoundISO) {
+                write-host "No ISO corresponding to version $TargetedOS found"
+                return $False
+            }
+
+            write-verbose "Selected $ResultISO for servicing"
+
+            Write-Verbose "Check is the ISO is already expanded locally"
+
+            $NeedToExpand = $False
+            # Verify Wim Tmp held directory
+            $ExpandedISO = "$ISOPath\$ISOName"
+            write-verbose "Test if $ExpandedISO exist"
+            If(!(test-path $ExpandedISO)) {
+                write-verbose "Create $ExpandedISO directory"
+                New-Item -ItemType Directory -Force -Path $ExpandedISO | out-null
+                $NeedToExpand = $true
+            } else {
+                $Dir = "$ExpandedISO\sources"
+                If(!(test-path $Dir)) {
+                        Write-Verbose "The actual expanded dir doesn't contain the expected ISO structure"
+                        Write-Verbose "we switch in expanded mode"
+                        #Remove Expanded dir content
+                        Remove-Item $ExpandedISO -Force -Recurse
+                        New-Item -ItemType Directory -Force -Path $ExpandedISO | out-null
+                        $NeedToExpand = $true
+                    }
+                }
+
+            $ISOFull = (Get-Item -LiteralPath $ResultISO).Fullname
+            $fullDest = ($ISOFull.split('.'))[0]
+
+            if ($NeedToExpand) {
+
+                Write-Host "Expanding the ISO ..."
+                $MountedLetter = ""
+                $MountedISO = Mount-DiskImage -ImagePath $ISOFull -PassThru
+                $MountedLetter = ($MountedISO | Get-Volume).DriveLetter
+                $IsoMounted = $true
+                Write-Verbose "ISO mounted on $MountedLetter"
+
+                $TargetInstalWim = $MountedLetter+":\Sources\install.wim"
+                Write-Verbose "Checking $TargetInstalWim"
+                if (!(Test-Path $TargetInstalWim)) {
+                    Write-Host -ForegroundColor Red "The mounted ISO doesn't hold a valid Wim to use";
+                    Write-Verbose "Dismounting $ResultISO"
+                    DisMount-DiskImage -ImagePath $ResultISO
+                    $IsoMounted = $false
+                    return $False
+                }
+
+                write-host "Copying files....."
+                Copy-Item -Path ($MountedLetter+":\*") -Destination ($fullDest+"\") -Force -Recurse
+
+                DisMount-DiskImage -ImagePath $ISOFull
+                $IsoMounted = $False
+            } else {
+                Write-Host "No need to expand the ISO"
+            }
+
+        write-host "ISO expanded in $fullDest"
+
+
+        }
+        catch [System.Exception] {
+            Write-Host -ForegroundColor Red $_.Exception.Message;
+            return $False
+        }
+        finally {
+            # Check if the ISO need to be dismounted
+            if ($IsoMounted -eq $true) {
+                Write-Verbose "Dismounting ISO after Exception"
+                DisMount-DiskImage -ImagePath $ResultISO
+            }
+
+            if ($Verbosity -eq $true) {
+
+                write-verbose "Re establish initial verbosity"
+                $VerbosePreference = $OldVerboseLevel
+                $DebugPreference = $OldDebugLevel
+
+            }
+        }
+    }
+
+    end {
+        Write-Verbose "End procesing Sync-WindowsISO"
+    }
+}
 function IsOSVersionSupported {
     param (
         [string]$OS2Check
@@ -332,6 +494,7 @@ function Set-USBKey {
                     }
                 }
             }
+            $MntDirBt = "$env:TMP\Wimdir\MountedBt"
 
             # Verify Mounting directory
             $MntDir = "$env:TMP\Wimdir\Mounted"
@@ -348,6 +511,11 @@ function Set-USBKey {
                 }
             }
 
+            $MntDirBt = "$env:TMP\Wimdir\MountedBt"
+            If(!(test-path $MntDirBt)) {
+                write-verbose "Create $MntDirBt directory"
+                New-Item -ItemType Directory -Force -Path $MntDirBt | out-null
+            }
 
             # Verify Scratch directory
             $ScrtchDir = "$env:TMP\Wimdir\Scratch"
@@ -372,6 +540,7 @@ function Set-USBKey {
             write-host "Please, don't interrupt the script ...."
 
             $StrtAll = Get-Date
+            write-verbose $StrtAll
             [System.Collections.ArrayList]$JbLst = @()
 
 ######
@@ -408,6 +577,7 @@ function Set-USBKey {
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "Format/Copy in $Min Min and $Sec Seconds"
+                        write-host $End
                         write-host "============="
                         write-host ":: End Step 1"
                         write-host "============="
@@ -440,6 +610,12 @@ function Set-USBKey {
                         write-host ":: Step 2"
                         write-host "========="
 
+                        [String]$SrcWimFile = (Join-Path -Path "$SrcWimLetter" -ChildPath '\sources\boot.wim')
+                        [String]$DstWimFile = (Join-Path -Path "$TDir" -ChildPath '\boot.wim')
+                        write-host "Copying $WimToRemove boot.wim"
+                        copy-item $SrcWimFile -Destination $DstWimFile
+                        Set-ItemProperty $DstWimFile -name IsReadOnly -value $false
+
                         [String]$SrcWimFile = (Join-Path -Path "$SrcWimLetter" -ChildPath '\sources\install.wim')
                         [String]$DstWimFile = (Join-Path -Path "$TDir" -ChildPath '\install.wim')
                         write-host "Copying $WimToRemove install.wim"
@@ -459,12 +635,12 @@ function Set-USBKey {
 
                         }
 
-
                         $End = Get-Date
                         $Span = New-TimeSpan -Start $Strt -End $End
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "Wim Prepared in $Min Min and $Sec Seconds"
+                        write-host $End
                         write-host "============="
                         write-host ":: End Step 2"
                         write-host "============="
@@ -522,6 +698,7 @@ function Set-USBKey {
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "Drivers gathered in $Min Min and $Sec Seconds"
+                        write-host $End
                         write-host "============="
                         write-host ":: End Step 3"
                         write-host "============="
@@ -573,6 +750,7 @@ function Set-USBKey {
                         $Min = $Span.Minutes
                         $Sec = $Span.Seconds
                         Write-Host "CU gathered in $Min Min and $Sec Seconds"
+                        write-host $End
                         write-host "============="
                         write-host ":: End Step 4"
                         write-host "============="
@@ -621,11 +799,22 @@ function Set-USBKey {
                 $ExpDirCnt = (Get-ChildItem -Path $DrvExpandRoot).count
                 Write-verbose "Found $ExpDirCnt item in the expanded MSI root directory"
 
+                $ExpDirSystDrv = (Get-ChildItem -Path $DrvExpandRoot -Filter "Drivers" -Recurse -ErrorAction SilentlyContinue -Force).FullName
+
                 If($ExpDirCnt -gt 0) {
                     ## Mount Wim
                     [String]$MntWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install.wim')
+                    [String]$MntWimFileBt = (Join-Path -Path $TmpTDir -ChildPath 'boot.wim')
                     [String]$LogPath = (Join-Path -Path $TmpTDir -ChildPath 'DISM.log')
-                    Write-Host "Mounting Image..."
+
+                    Write-Host "Mounting Boot Image..."
+                    $Ret = Mount-WindowsImage -ImagePath $MntWimFileBt -Index 2 -Path $MntDirBt -ScratchDirectory $ScrtchDir -LogPath $LogPath
+                    Add-WindowsDriver -Path $MntDirBt -Driver $ExpDirSystDrv -Recurse -LogPath $LogPath | Out-Null
+                    $Ret = Dismount-WindowsImage -Path $MntDirBt -ScratchDirectory $ScrtchDir -LogPath $LogPath -save
+
+                    Write-Host "Mounting Install Image..."
+                    $cp = get-date
+                    write-verbose $cp
                     $Ret = Mount-WindowsImage -ImagePath $MntWimFile -Index $WimIndx -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath
                     $WimMounted = $true
 
@@ -636,7 +825,10 @@ function Set-USBKey {
                     $Discard = $False
 
                     ## Inject Drivers
-                    Add-WindowsDriver -Path $MntDir -Driver $DrvExpandRoot -Recurse -LogPath $LogPath | Out-Null
+                    Write-Host "Inject Drivers in the new Wim"
+                    $cp = get-date
+                    write-verbose $cp
+                    Add-WindowsDriver -Path $MntDir -Driver $ExpDirSystDrv -Recurse -LogPath $LogPath | Out-Null
                     Write-Host "Drivers injected in the new Wim"
                     write-verbose "Add the Driver Readme.txt to the USB Key"
                     $ReadMe = (Get-ChildItem -Recurse -Path $DrvExpandRoot -filter ReadMe.txt).FullName
@@ -646,6 +838,16 @@ function Set-USBKey {
                         Copy-Item -Path $ReadMe -Destination ($Drv+":\ReadMe.txt")
                     }
 
+                    $drvdir = "$MntDir\SurfaceDrivers"
+                    $ret = New-Item -ItemType Directory -Force -Path $drvdir
+                    copy-item -Path $env:TMP\SDrivers.msi  -Destination $drvdir
+
+                    $WinSetupDir = "$MntDir\WINDOWS\Setup\Scripts\"
+                    $ret = New-Item -ItemType Directory -Force -Path $WinSetupDir
+                    $WinSetupFile = "$WinSetupDir\Setupcomplete.cmd"
+                    Set-Content -Value "mkdir C:\SurfaceDrivers\PostSetup" -Path $WinSetupFile
+                    Add-Content -Value "`n`rMSIEXEC /norestart /qn /log C:\SurfaceDrivers\SDrivers.log /i C:\SurfaceDrivers\SDrivers.msi" -Path $WinSetupFile
+
                     ## Inject the latest CU
                     if ($Global:SkipJ4 -ne $true) {
                         Wait-Job $JobGetCU | Out-Null
@@ -654,7 +856,10 @@ function Set-USBKey {
 
                         if (Test-Path $CUFile) {
 
-                            Add-WindowsPackage -Path $MntDir -PackagePath $CUFile -PreventPending -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                            Write-Host "Inject Latest Cumulative Update in the new Wim"
+                            $cp = get-date
+                            write-verbose $cp
+                            Add-WindowsPackage -Path $MntDir -PackagePath $CUFile -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
                             Write-Host "Latest Cumulative Update injected in the new Wim"
 
                         } else {
@@ -670,6 +875,8 @@ function Set-USBKey {
                         $Ret = Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Discard
                     } else {
                         Write-Host "Committing Changes and Dismounting Image..."
+                        $cp = get-date
+                        write-verbose $cp
                         $Ret = Dismount-WindowsImage -Path $MntDir -ScratchDirectory $ScrtchDir -LogPath $LogPath -Save
                     }
                 } else {
@@ -693,9 +900,20 @@ function Set-USBKey {
                     $CompactName = "BMR-" + $SurfaceModel.replace(" ","").toupper() + $TargetedOS
                     #Export the image to a more compact one
                     [String]$ExptWimFile = (Join-Path -Path $TmpTDir -ChildPath 'install_serviced.wim')
+                    write-Host "Export the $TSku stream Only"
+                    $cp = get-date
+                    write-verbose $cp
                     $Ret = Export-WindowsImage -SourceImagePath $MntWimFile -SourceIndex $WimIndx -DestinationImagePath $ExptWimFile -DestinationName $CompactName -ScratchDirectory $ScrtchDir -LogPath $LogPath
                     [String]$FinalSwmFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\install.swm')
+                    write-Host "Split the WIM to fit on Fat32"
+                    $cp = get-date
+                    write-verbose $cp
                     $ret = Split-WindowsImage -FileSize 3500 -ImagePath $ExptWimFile -SplitImagePath $FinalSwmFile -CheckIntegrity -ScratchDirectory $ScrtchDir
+                    write-Host "Split the WIM to fit on Fat32"
+
+                    [String]$FinalWimBtFile = (Join-Path -Path ($Drv + ":") -ChildPath '\sources\boot.wim')
+                    Copy-Item $MntWimFileBt -Destination $FinalWimBtFile -Force
+
                 }
             } else {
 
@@ -704,14 +922,22 @@ function Set-USBKey {
             }
 
             Write-Verbose "Dismounting $ResultISO"
+            $cp = get-date
+            write-verbose $cp
             DisMount-DiskImage -ImagePath $ResultISO
             $IsoMounted = $false
+            $cp = get-date
+            write-verbose $cp
 
             # Generate ISO file
             if (($MakeISO -eq $true) -and ($Discard -ne $true)) {
                 $TCIsoName = ".\" + $CompactName + ".iso"
+                write-host "Making the ISO file"
+                $cp = get-date
+                write-verbose $cp
                 Get-ChildItem ($Drv + ":\") | New-IsoFile -Media 'DVDPLUSR_DUALLAYER' -Title $CompactName -Path $TCIsoName -Force
-
+                $cp = get-date
+                write-verbose $cp
             }
 
             #Write tag file on completion
@@ -1909,7 +2135,7 @@ function Get-LatestCU {
 $ModuleName = "SurfUtil"
 Write-Verbose "Loading $ModuleName Module"
 
-Export-ModuleMember -Function New-USBKey,New-IsoFile,Import-SurfaceDrivers,Import-SurfaceDB,Import-Config,Get-LatestCU
+Export-ModuleMember -Function New-USBKey,New-IsoFile,Import-SurfaceDrivers,Import-SurfaceDB,Import-Config,Get-LatestCU,Sync-WindowsISO
 
 $ThisModule = $MyInvocation.MyCommand.ScriptBlock.Module
 $ThisModule.OnRemove = { Write-Verbose "Module $ModuleName Unloaded" }

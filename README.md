@@ -44,10 +44,11 @@ Two important prerequisit
 
 So for example, if you wish to generate an bootable Bare Metal Recovery key based on Windows 10 1803 for your Surface Pro 3 you just have to use the following command :
 
-      .\MakeBMR -Drive D -SurfaceModel "Surface Pro3" -WindowsVersion 1803
+      .\MakeBMR -Drive D -SurfaceModel "Surface Pro 3" -WindowsVersion 1803
 
 + Where D is the letter holding my 8Go USB Key
 + You can add also the *-MkISO $true* parameter to generate an ISO copy of your key for future reuse.
++ You can have a very verbose outpout by adding *-Log $True*
 
 Keep in mind that there is no magic in the tool, It just gathers the required OS file from the iso then gathers the latest driver from the net finaly it mixes that and optimizes the resulting media size.  It also do the spliting of wim files when needed. The result is an optimized slipstreamed version of a Windows installation key dedicated to the Surface Model requested.
 

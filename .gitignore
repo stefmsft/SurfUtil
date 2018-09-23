@@ -10,3 +10,7 @@ WindowssCU
 *kb*.msu
 *.pptx
 log/*.txt
+PostSetup/*.exe
+PostSetup/*.msi
+GetLatestCU.ps1
+test.ps1
