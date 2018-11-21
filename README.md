@@ -31,8 +31,12 @@ You can do this in a one line of powershell command and even can think of creati
 
 ## Bare Metal Recovery Master functions
 
-  The goal of those functions (only one for now but more will come) is to generate an bootable USB key to achieve actions like reinstalling a slipstreamed version (OS+Driver Set) targeted to a specific version of Windows 10 (see below)
-  + MakeBMR.ps1
+The goal of those functions (only one for now but more will come) is to generate an bootable USB key to achieve actions like reinstalling a slipstreamed version (OS+Driver Set) targeted to a specific version of Windows 10 (see below)
++ PrepareISO.ps1
+This script will help you to maintain you OS base ISO up to date by injecting the latest "Cumulative Update" available in the selected WIM SKU. The processing result will procduce a directory with the same name of the ISO file containg the OS+CU version. MakeBMR (cf below) will detect such directory and will use it in place of the ISO file. This way, the produced key will contains an up to date version of the OS.
+It is adviced to delete the updated directory when you wish to reiterrate the update process later. This way you always play with a "clean" ISO an then add the latest Cummunlative on it.
+
++ MakeBMR.ps1
 As described above, this will allow you the generate an bootable USB Key for a model of Surface. This key will allow  you to reinstal the machine in arround 20 min.
 
 Two important prerequisit
@@ -80,8 +84,18 @@ Keep in mind that there is no magic in the tool, It just gathers the required OS
 
         ... You should have a reimaged Surface after 20 minutes
 
+## Supported parameters
++ Drive          : This is the letter of the drive holding your usb key
++ WindowsVersion : This is
++ SurfaceModel   : This is
++ WindowsEdition : This is
++ WindowsVersion : This is
++ WindowsVersion : This is
++ WindowsVersion : This is
+
 ## Supported model
 Here is below the list of Surface Model supported with the current version of the tool :
++ 'Surface Go'
 + 'Surface Pro'
 + 'Surface Pro LTE'
 + 'Surface Book'
@@ -100,6 +114,7 @@ A the date of the latest release this is :
 + RS2 (1703)
 + RS3 (1709)
 + RS4 (1803)
++ RS5 (1809)
 
 As for the Drivers part, the available drivers version online will drive what the tool support ... For the boot key generation, you are in charge of providing the OS distribution you wish to use (iso file).The result will be as good as the quality of the ingredient you use with the tool.
 

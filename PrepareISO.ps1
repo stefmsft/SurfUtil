@@ -1,6 +1,7 @@
 Param(  [int]$WindowsVersion,
         [string]$PathToISO,
         [string]$WindowsEdition,
+        [string]$Language,
         [bool]$Log
     )
 
@@ -60,12 +61,25 @@ try {
         }
     }
 
-    #Check on the Drive
+    if ($Language -eq "") {
+
+        Write-Verbose "No ISO language selector provided ... Looking to the default config file"
+        $Language = $DefaultFromConfigFile["Language"]
+        if ($Language -eq "") {
+            $Language = "en"
+        }
+    } else {
+        if ($Language.Length -gt 2) {
+            Write-Host -ForegroundColor Red "Please enter a 2 characters code for language or specify nothing for 'en' "
+            return $false
+        }
+    }
 
     Write-Host "Service Windows ISO for Windows [$WindowsVersion]"
 
-    Write-Verbose "Calling Sync-WindowsISO -ISO '$IsoPath' -OSV $WindowsVersion -TargetSKU '$TargetSKU' -Log $Log"
-    Sync-WindowsISO -ISO $PathToISO -OSV $WindowsVersion -TargetSKU $TargetSKU -Log $Log
+    Write-Verbose "Calling Sync-WindowsISO -ISO '$IsoPath' -Version $WindowsVersion -TargetSKU '$TargetSKU' -Language $Language -Log $Log"
+    Sync-WindowsISO -ISO $PathToISO -Version $WindowsVersion -TargetSKU $TargetSKU -Log $Log -Language $Language
+
 
 }
 catch [System.Exception] {

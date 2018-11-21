@@ -48,6 +48,12 @@
             <OS MinSupported=''>
             </OS>
         </Surface>
+        <Surface ID='Surface Go'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=57439'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
     </SurfacesModels>
     <SurfacesTools>
         <Tool ID='Surface Dock Updater'>
@@ -64,6 +70,6 @@
         <RS2 ReleaseCode='1703' internalCode='15063'></RS2>
         <RS3 ReleaseCode='1709' internalCode='16299'></RS3>
         <RS4 ReleaseCode='1803' internalCode='17134'></RS4>
-        <RS4 ReleaseCode='1809' internalCode='17744'></RS4>
+        <RS4 ReleaseCode='1809' internalCode='17763'></RS4>
     </OSRelease>
 </ModelsDB>

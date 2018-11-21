@@ -7,6 +7,8 @@ Param(  [Parameter( Mandatory=$true)]
         [String]$DrvRepo,
         [string]$WindowsEdition,
         [bool]$MkISO,
+        [string]$Language,
+        [string[]]$InjLP,
         [bool]$Log
     )
 
@@ -90,6 +92,16 @@ try {
         }
     }
 
+    if ($Language -eq "") {
+
+        Write-Verbose "No Language parameter provided ... Looking to the default config file"
+        $Language = $DefaultFromConfigFile["Language"]
+        if ($Language -eq "") {
+            Write-Verbose "Revert to default - Language=en"
+            $Language = "en"
+        }
+    }
+
     #Check on the Drive
     $TargetDrv = Get-WmiObject win32_volume|where-object {$_.driveletter -match "$Drive"}
     $TargetSize = [int32]($TargetDrv.Capacity / 1GB)
@@ -105,8 +117,8 @@ try {
     Write-Host "Create a BMR Key for [$SurfaceModel] / [$TargetSKU $WindowsVersion]"
 
 
-    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log"
-    New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log
+    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log"
+    New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log
 
     if (($SurfaceModel.tolower() -eq "surface pro") -or ($SurfaceModel.tolower() -eq "surface pro lte")) {
         write-host "*******************************************************************"
