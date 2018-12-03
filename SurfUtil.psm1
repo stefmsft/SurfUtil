@@ -1010,67 +1010,69 @@ function Set-USBKey {
 
                         #Inject Language Pack files
                         if ($InjLPList -ne "") {
-                            $MountedLPISO = Mount-DiskImage -ImagePath $InjLPPath -PassThru
-                            $MountedLPLetter = ($MountedLPISO | Get-Volume).DriveLetter
-                            $MountedLPLetter = $MountedLPLetter + ":"
-                            $IsoLPMounted = $true
+                            if ($InjLPPath -ne "") {
+                                $MountedLPISO = Mount-DiskImage -ImagePath $InjLPPath -PassThru
+                                $MountedLPLetter = ($MountedLPISO | Get-Volume).DriveLetter
+                                $MountedLPLetter = $MountedLPLetter + ":"
+                                $IsoLPMounted = $true
 
-                            Write-Host "Mounting WinRE Wim Image..."
-                            $MntReWimFile = "$MntDir\Windows\System32\Recovery\Winre.wim"
-                            $Ret = Mount-WindowsImage -ImagePath $MntReWimFile -Index 1 -Path $MntDirRe -LogPath $LogPath
-                            $WimReMounted = $true
+                                Write-Host "Mounting WinRE Wim Image..."
+                                $MntReWimFile = "$MntDir\Windows\System32\Recovery\Winre.wim"
+                                $Ret = Mount-WindowsImage -ImagePath $MntReWimFile -Index 1 -Path $MntDirRe -LogPath $LogPath
+                                $WimReMounted = $true
 
-                            $LgIniPath = $Drv + ":\sources\lang.ini"
-                            $LPPathBase = "$MountedLPLetter\x64\langpacks\"
-                            $firstlg = $true
-                            $Distribution = $Drv+":\"
-                            foreach ($lpe in $InjLPList) {
+                                $LgIniPath = $Drv + ":\sources\lang.ini"
+                                $LPPathBase = "$MountedLPLetter\x64\langpacks\"
+                                $firstlg = $true
+                                $Distribution = $Drv+":\"
+                                foreach ($lpe in $InjLPList) {
 
-                                $PeCab1 = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\lp.cab"
-                                $PeCab2 = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\WinPE-Setup_$lpe.cab"
-                                $PeCab3 = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\WinPE-Setup-client_$lpe.cab"
-                                $CurLPFilter = "Microsoft-Windows-Client-Language*_$lpe.cab"
-                                Write-Verbose "Filtering ISO directory on $CurLPFilter"
-                                $LPCDir = get-childitem $LPPathBase
-                                $ListMatchingLPC = $LPCDir | where-object {$_.Name -like $CurLPFilter}
-                                if ($ListMatchingLPC.count -ne 0) {
-                                    Write-Host "Inject Language Packs $lpe in install.Wim"
-                                    write-verbose "Found list of matching iso $ListMatchingLPC"
-                                    foreach ($LPCfile in $ListMatchingLPC) {
-                                        write-verbose "Found $LPCfile"
-                                        $LPCFile2Inject = "$LPPathBase\$LPCfile"
-                                        write-verbose "Inject LP in install.wim for $lpe"
-                                        Add-WindowsPackage -Path $MntDir -PackagePath $LPCFile2Inject -NoRestart -IgnoreCheck -LogPath $LogPath | out-null
+                                    $PeCab1 = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\lp.cab"
+                                    $PeCab2 = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\WinPE-Setup_$lpe.cab"
+                                    $PeCab3 = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\WinPE-Setup-client_$lpe.cab"
+                                    $CurLPFilter = "Microsoft-Windows-Client-Language*_$lpe.cab"
+                                    Write-Verbose "Filtering ISO directory on $CurLPFilter"
+                                    $LPCDir = get-childitem $LPPathBase
+                                    $ListMatchingLPC = $LPCDir | where-object {$_.Name -like $CurLPFilter}
+                                    if ($ListMatchingLPC.count -ne 0) {
+                                        Write-Host "Inject Language Packs $lpe in install.Wim"
+                                        write-verbose "Found list of matching iso $ListMatchingLPC"
+                                        foreach ($LPCfile in $ListMatchingLPC) {
+                                            write-verbose "Found $LPCfile"
+                                            $LPCFile2Inject = "$LPPathBase\$LPCfile"
+                                            write-verbose "Inject LP in install.wim for $lpe"
+                                            Add-WindowsPackage -Path $MntDir -PackagePath $LPCFile2Inject -NoRestart -IgnoreCheck -LogPath $LogPath | out-null
+                                        }
                                     }
-                                }
-                                $PELPFilePath = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\lp.cab"
-                                write-host "Inject Language Pack in WinRE.wim for $lpe"
-                                Add-WindowsPackage -Path $MntDirRe -PackagePath $PELPFilePath -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
-                                write-host "Inject Language Pack in boot.wim for $lpe"
-                                Add-WindowsPackage -Path $MntDirBt -PackagePath $PeCab1 -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
-                                Add-WindowsPackage -Path $MntDirBt -PackagePath $PeCab2 -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
-                                Add-WindowsPackage -Path $MntDirBt -PackagePath $PeCab3 -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
-                                #By convention, we set the default to the first language in the list
-                                if ($firstlg -eq $true) {
-                                    Dism /image:$MntDir /set-allIntl:$lpe | Out-File -FilePath "$TmpTDir\lp.log" -Force
-                                    Dism /image:$MntDirRe /set-allIntl:$lpe | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
-                                    Dism /image:$MntDirbt /set-allIntl:$lpe | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
-                                }
-                                if (test-path ".\lp\$TargetedOS\$lpe") {
-                                    try {
-                                        xcopy ".\lp\$TargetedOS\$lpe" "$Distribution\sources\$lpe" /cherkyi | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
-                                    } catch {
-                                        Write-Host "Exception while trying to push MUI ressources for $lpe to the key"
-                                        continue
+                                    $PELPFilePath = "$MountedLPLetter\Windows Preinstallation Environment\x64\WinPE_OCs\$lpe\lp.cab"
+                                    write-host "Inject Language Pack in WinRE.wim for $lpe"
+                                    Add-WindowsPackage -Path $MntDirRe -PackagePath $PELPFilePath -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                                    write-host "Inject Language Pack in boot.wim for $lpe"
+                                    Add-WindowsPackage -Path $MntDirBt -PackagePath $PeCab1 -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                                    Add-WindowsPackage -Path $MntDirBt -PackagePath $PeCab2 -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                                    Add-WindowsPackage -Path $MntDirBt -PackagePath $PeCab3 -NoRestart -IgnoreCheck -LogPath $LogPath | Out-Null
+                                    #By convention, we set the default to the first language in the list
+                                    if ($firstlg -eq $true) {
+                                        Dism /image:$MntDir /set-allIntl:$lpe | Out-File -FilePath "$TmpTDir\lp.log" -Force
+                                        Dism /image:$MntDirRe /set-allIntl:$lpe | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
+                                        Dism /image:$MntDirbt /set-allIntl:$lpe | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
                                     }
+                                    if (test-path ".\lp\$TargetedOS\$lpe") {
+                                        try {
+                                            xcopy ".\lp\$TargetedOS\$lpe" "$Distribution\sources\$lpe" /cherkyi | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
+                                        } catch {
+                                            Write-Host "Exception while trying to push MUI ressources for $lpe to the key"
+                                            continue
+                                        }
+                                    }
+                                    $firstlg = $False
                                 }
-                                $firstlg = $False
+                                Set-ItemProperty $LgIniPath -name IsReadOnly -value $false
+                                Dism /image:$MntDir /gen-langini /distribution:$Distribution | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
+                                Copy-Item $LgIniPath -Destination "$MntDirBt\sources"
+                                DisMount-DiskImage -ImagePath $InjLPPath | out-null
+                                $IsoLPMounted = $False
                             }
-                            Set-ItemProperty $LgIniPath -name IsReadOnly -value $false
-                            Dism /image:$MntDir /gen-langini /distribution:$Distribution | Out-File -FilePath "$TmpTDir\lp.log" -Force -Append
-                            Copy-Item $LgIniPath -Destination "$MntDirBt\sources"
-                            DisMount-DiskImage -ImagePath $InjLPPath | out-null
-                            $IsoLPMounted = $False
                         }
 
                         Write-verbose "Dismount the boot.wim file"
@@ -1236,6 +1238,7 @@ function Set-USBKey {
                 $Global:KeepExpandedDir = $true
                 $Global:KeepDriversFile = $true
                 $Global:KeepWimDir = $true
+                return $false
             }
 
 
@@ -1267,6 +1270,16 @@ function Set-USBKey {
             #Do some cleaning
             Get-Job | Receive-Job
             Remove-Job *
+
+            #Add a last failsafe to unmount forgotten WIM (replicated in LoadAnCheck)
+            $Mounted = get-windowsImage -Mounted
+            foreach ($Mp in $Mounted) {
+                $sp = $Mp.ImagePath.split("\")
+                $WimName = $sp[$sp.count -1]
+                Write-Host "Dismounting $WimName"
+                Dismount-windowsImage -Path $MP.path -Discard | out-null
+            }
+
             # Cleanup the misc Temp dir except we specify to keep them for debug purpose
             if ($Global:KeepExpandedDir -ne $true) {
 
@@ -1408,6 +1421,9 @@ function New-USBKey {
         [Alias('InjectLP')]
         [string[]]$lppkg
         ,
+        [Alias('DirectInject')]
+        [bool]$DirInjection=$False
+        ,
         [Alias('Log')]
         [string]$LogAsk
     )
@@ -1423,7 +1439,7 @@ function New-USBKey {
         }
 
 
-        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,language=$lg,InjLP$lppkg,=Log=$LogAsk)"
+        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,language=$lg,InjLP$lppkg,=Log=$LogAsk,DirectInject=$DirInjection)"
 
         $Global:SkipJ1 = $False
         $Global:SkipJ2 = $False
@@ -1432,7 +1448,7 @@ function New-USBKey {
         $Global:KeepExpandedDir = $False
         $Global:KeepDriversFile = $false
         $Global:KeepWimDir = $false
-        $global:DirectInject = $False
+        $global:DirectInject = $DirInjection
 
     }
 
@@ -1496,7 +1512,7 @@ function New-USBKey {
                     if ($ListMatchingISO.count -ne 0) {
                         write-verbose "Found list of matching iso $ListMatchingISO"
                         foreach ($ISOfile in $ListMatchingISO) {
-                            write-verbose "Found Language PAck ISO $ISOFile"
+                            write-verbose "Found Language Pack ISO $ISOFile"
 #                            $ISOName = ($ISOFile.name -split '\.')[0]
                             $ResultISOLP = "$lglp\$ISOfile"
                         }
@@ -1505,11 +1521,12 @@ function New-USBKey {
             }
 
             if ($ResultISOLP -eq "") {
-                Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg
+                $ret = Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg
             } else {
-                Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg -InjectLPPath $ResultISOLP -InjectLPList $lppkg
+                $ret = Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg -InjectLPPath $ResultISOLP -InjectLPList $lppkg
             }
 
+            return $ret
         }
         catch [System.Exception] {
             Write-Host -ForegroundColor Red $_.Exception.Message;
