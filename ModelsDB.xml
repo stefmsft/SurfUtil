@@ -70,6 +70,6 @@
         <RS2 ReleaseCode='1703' internalCode='15063'></RS2>
         <RS3 ReleaseCode='1709' internalCode='16299'></RS3>
         <RS4 ReleaseCode='1803' internalCode='17134'></RS4>
-        <RS4 ReleaseCode='1809' internalCode='17763'></RS4>
+        <RS5 ReleaseCode='1809' internalCode='17763'></RS5>
     </OSRelease>
 </ModelsDB>
