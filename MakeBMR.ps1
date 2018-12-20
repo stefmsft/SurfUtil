@@ -6,7 +6,10 @@ Param(  [Parameter( Mandatory=$true)]
         [string]$PathToISO,
         [String]$DrvRepo,
         [string]$WindowsEdition,
-        [bool]$MkISO,
+        [bool]$MkISO=$false,
+        [string]$Language,
+        [string[]]$InjLP,
+        [Bool]$DirectInj=$False,
         [bool]$Log
     )
 
@@ -90,6 +93,16 @@ try {
         }
     }
 
+    if ($Language -eq "") {
+
+        Write-Verbose "No Language parameter provided ... Looking to the default config file"
+        $Language = $DefaultFromConfigFile["Language"]
+        if ($Language -eq "") {
+            Write-Verbose "Revert to default - Language=en"
+            $Language = "en"
+        }
+    }
+
     #Check on the Drive
     $TargetDrv = Get-WmiObject win32_volume|where-object {$_.driveletter -match "$Drive"}
     $TargetSize = [int32]($TargetDrv.Capacity / 1GB)
@@ -105,16 +118,20 @@ try {
     Write-Host "Create a BMR Key for [$SurfaceModel] / [$TargetSKU $WindowsVersion]"
 
 
-    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log"
-    New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Log $Log
+    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log -DirectInj $DirectInj"
+    $ret = New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log -DirectInj $DirectInj
 
-    if (($SurfaceModel.tolower() -eq "surface pro") -or ($SurfaceModel.tolower() -eq "surface pro lte")) {
-        write-host "*******************************************************************"
-        write-host "* Warning information (Surface Pro/LTE only):                                           *"
-        write-host "* Verify that the version of the Surface System Aggregator        *"
-        write-host "* firmware of the targeted surface is in version v234.2110.1.0    *"
-        write-host "* or greater before using this key                                *"
-        write-host "*******************************************************************"
+    if ($DirectInj -eq $true) {
+        if ($ret -eq $true) {
+            if (($SurfaceModel.tolower() -eq "surface pro") -or ($SurfaceModel.tolower() -eq "surface pro lte")) {
+                write-host "*******************************************************************"
+                write-host "* Warning information (Surface Pro/LTE only):                                           *"
+                write-host "* Verify that the version of the Surface System Aggregator        *"
+                write-host "* firmware of the targeted surface is in version v234.2110.1.0    *"
+                write-host "* or greater before using this key                                *"
+                write-host "*******************************************************************"
+            }
+        }
     }
 
 }

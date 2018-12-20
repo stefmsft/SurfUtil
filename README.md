@@ -31,8 +31,12 @@ You can do this in a one line of powershell command and even can think of creati
 
 ## Bare Metal Recovery Master functions
 
-  The goal of those functions (only one for now but more will come) is to generate an bootable USB key to achieve actions like reinstalling a slipstreamed version (OS+Driver Set) targeted to a specific version of Windows 10 (see below)
-  + MakeBMR.ps1
+The goal of those functions (only one for now but more will come) is to generate an bootable USB key to achieve actions like reinstalling a slipstreamed version (OS+Driver Set) targeted to a specific version of Windows 10 (see below)
++ PrepareISO.ps1
+This script will help you to maintain you OS base ISO up to date by injecting the latest "Cumulative Update" available in the selected WIM SKU. The processing result will procduce a directory with the same name of the ISO file containg the OS+CU version. MakeBMR (cf below) will detect such directory and will use it in place of the ISO file. This way, the produced key will contains an up to date version of the OS.
+It is adviced to delete the updated directory when you wish to reiterrate the update process later. This way you always play with a "clean" ISO an then add the latest Cummunlative on it.
+
++ MakeBMR.ps1
 As described above, this will allow you the generate an bootable USB Key for a model of Surface. This key will allow  you to reinstal the machine in arround 20 min.
 
 Two important prerequisit
@@ -44,10 +48,11 @@ Two important prerequisit
 
 So for example, if you wish to generate an bootable Bare Metal Recovery key based on Windows 10 1803 for your Surface Pro 3 you just have to use the following command :
 
-      .\MakeBMR -Drive D -SurfaceModel "Surface Pro3" -WindowsVersion 1803
+      .\MakeBMR -Drive D -SurfaceModel "Surface Pro 3" -WindowsVersion 1803
 
 + Where D is the letter holding my 8Go USB Key
 + You can add also the *-MkISO $true* parameter to generate an ISO copy of your key for future reuse.
++ You can have a very verbose outpout by adding *-Log $True*
 
 Keep in mind that there is no magic in the tool, It just gathers the required OS file from the iso then gathers the latest driver from the net finaly it mixes that and optimizes the resulting media size.  It also do the spliting of wim files when needed. The result is an optimized slipstreamed version of a Windows installation key dedicated to the Surface Model requested.
 
@@ -79,16 +84,59 @@ Keep in mind that there is no magic in the tool, It just gathers the required OS
 
         ... You should have a reimaged Surface after 20 minutes
 
+## Supported parameters for MakeBMR
+
++ -Drive          : This is the letter of the drive holding your usb key
++ -WindowsVersion : This is the 4 digit version of Windows 10 that you wish to use as a base for the key
++ -SurfaceModel   : This is the Surface Model targeted for the key
++ -WindowsEdition : This is the SKU (pro,enterprise, etc ... ) targeted. The default value in Config.xml is "Windows 10 Pro*"
++ -MkISO : Boolean allowing to ask for the creation of a iso file that is a copy of the usb-key. Warning : This lead to a longer creation process.
++ -Language : This is a 2 letter selector (ex: "fr" or "en") allowing the tool to pickup a specific ISO file in the ISO directory. You can have for the same WindowsVersion target 2 or more ISOs available in your directory. The name schema of those file should be LL_windows_10*_VVVV_*.iso. The language parameter will replace LL in the seek for a valid OS ISO.
++ -InjLP : This is a list of 5 letters string identifying the extra language that will be supported during setup. Language pack injection require some care and preparation steps that are described below.
++ -DirectInj : Boolean that specify if we want to inject the drivers pack directly in the WIM (value $true) or thru a post setup step where the MSI is silently applied (value $False). The later offer a lot of advantage. This is why the default value is $False
++ -Log : Boolean triggering a full verbosity of the operations when its value is $True. It is $False by default.
+
+Less used parameters
++ -DrvRepo : This define where the drivers repository directory reside. Most of the time you don't use it and leave the default which is '.\repo'
++ -PathToISO : This define where the ISO directory is. Most of the time you don't use it and leave the default which is '.\iso'
+
+## Requirement for injecting multple language in the generated MBR
+
+To have MakeBMR being able to inject one or multiple additional languages to base ISO, you need to follow thoroughly sone prereq steps:
+First create a directory name ".\lp"
+In this directory, you should have :
++ A language pack ISO for the version of the targeted OS. The expect naming convention should be :
+"mu_windows_10_language_pack_version_VVVV*.iso" where VVVV is the targeted OS Version for the key.
++ A 4 digits subdirectory that then hold subdirectories (xx-yy) representing every languages you wish to support.The 4 digits should represent the OS Targeted version (like 1803 or 1809, etc .. )
+The languages directories are in fact copied from the "\sources" directory of the ISO holding the binaries for this  targeted language.
+
+Here is how the ".\lp" directory structure should look like:
++ .\lp
+  + Target OS Version (4 digits)
+    + Targeted language (XX-yy)
+    + Targeted language (XX-yy)
+    + Targeted language (XX-yy)
+  + iso files for language pack
+
+For instance :
++ .\lp
+  + 1803
+    + fr-fr
+    + de-de
+    + es-es
+  + mu_windows_10_language_pack_version_1803_updated_march_2018_x86_x64_dvd_12063770
+
 ## Supported model
 Here is below the list of Surface Model supported with the current version of the tool :
++ 'Surface Go'
 + 'Surface Pro'
 + 'Surface Pro LTE'
 + 'Surface Book'
-+ 'Surface Book 2 [13¨/15¨]'
-+ 'Surface Studio' (*Still under validation process for MakeBMR - Be careful)
++ 'Surface Book 2' ([13¨/15¨])
++ 'Surface Studio'
 + 'Surface LapTop'
-+ 'Surface Pro4'
-+ 'Surface Pro3'
++ 'Surface Pro 4'
++ 'Surface Pro 3'
 
 ## Supported Windows 10 OS Versions
 Basically the supported OS are the OS version for witch a supported driver package (msi file) is available. The qualifying OS Version are also reflecting the current supported version of Windows 10.
@@ -99,6 +147,7 @@ A the date of the latest release this is :
 + RS2 (1703)
 + RS3 (1709)
 + RS4 (1803)
++ RS5 (1809)
 
 As for the Drivers part, the available drivers version online will drive what the tool support ... For the boot key generation, you are in charge of providing the OS distribution you wish to use (iso file).The result will be as good as the quality of the ingredient you use with the tool.
 
@@ -136,6 +185,12 @@ https://github.com/stefmsft/SurfUtil.git
 
 3.	Latest releases
 
+    **Release 1.2**
+    This release include :
+    - A support for extra languages (cf below)
+    - A new script allowing the prepare and update with the latest CU, the ISO file use as a base for the key produced by MakeBMR
+    - More failsafe checks in LoadAndCheck.ps1. This script should always be run before anything else to be sure that everything is ready to go.
+
     **Release 1.1**
 
     This release include :
@@ -154,6 +209,7 @@ https://github.com/stefmsft/SurfUtil.git
     * UpdateMySurface.ps1
     * UpdateRepo.ps1
     * MakeBMR.ps1
+    * PrepareISO.ps1
     * config.xml
     * ModelsDB.xml
 
