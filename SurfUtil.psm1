@@ -1885,8 +1885,7 @@ function Import-SurfaceDB {
         }
 
         $ModelsHT = @{}   # empty models hashtable for Drv Url
-        $ModelsHTSP = @{}   # empty models hashtable for Drv PAttern filter
-
+        $ModelsHTSP = @{}   # empty models hashtable for Drv PAttern fil
         foreach ($Child in $ModelDBFile.ModelsDB.SurfacesModels.ChildNodes ) {
 
                 $ModelsHT.Add($Child.ID.tolower(),$Child.Drivers.url.tolower())
@@ -1900,8 +1899,13 @@ function Import-SurfaceDB {
         $OSHT = @{}   # empty models hashtable
 
         foreach ($Child in $ModelDBFile.ModelsDB.OSRelease.ChildNodes ) {
-
+            if ($null -ne $Child.Supported) {
+                if ($Child.Supported.tolower() -ne "n") {
+                    $OSHT.Add($Child.ReleaseCode.tolower(),$Child.InternalCode.tolower())
+                }
+            } else {
                 $OSHT.Add($Child.ReleaseCode.tolower(),$Child.InternalCode.tolower())
+            }
         }
 
     $CtxData = ($ModelsHT,$OSHT,$ModelsHTSP)
