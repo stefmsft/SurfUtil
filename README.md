@@ -129,20 +129,22 @@ For instance :
 ## Supported model
 Here is below the list of Surface Model supported with the current version of the tool :
 + 'Surface Go'
++ 'Surface Go LTE'
++ 'Surface Pro 6'
 + 'Surface Pro'
 + 'Surface Pro LTE'
 + 'Surface Book'
 + 'Surface Book 2' ([13¨/15¨])
 + 'Surface Studio'
++ 'Surface Studio 2'
 + 'Surface LapTop'
++ 'Surface LapTop 2'
 + 'Surface Pro 4'
 + 'Surface Pro 3'
 
 ## Supported Windows 10 OS Versions
 Basically the supported OS are the OS version for witch a supported driver package (msi file) is available. The qualifying OS Version are also reflecting the current supported version of Windows 10.
 A the date of the latest release this is :
-+ TH1 (1507)
-+ TH2 (1511)
 + RS1 (1607)
 + RS2 (1703)
 + RS3 (1709)
