@@ -314,108 +314,6 @@ function IsOSVersionSupported {
     }
 
 }
-function Get-LatestCUUrl{
-    <#
-    .SYNOPSIS
-    Function returns the download URL as string of the latest CU for the requested Build.
-    .DESCRIPTION
-    Author Eric Scherlinger ... Taken from another source :-)
-        Written to enhance SurfUtil processing
-    .EXAMPLE
-    Get-LatestCUURL
-    .EXAMPLE
-    Get-LatestCUURL -TargetOS "1607"
-    .PARAMETER TargetOS
-    Enter the Win 10 Version number (1507,1511,1607,...) by default we use the latest version.
-    .NOTES
-    NAME:  Get-LatestCUURL
-    AUTHOR: Eric Scherlinger
-    LASTEDIT: 13/07/2018
-    #>
-    param
-    (
-        [Alias('TargetOS')]
-        [string]$TargetedOS
-    )
-
-    Write-Verbose "Get-LatestCUURL(TargetOS=$TargetedOS)"
-
-    ## Check if Target OS provided and instantiate a version filter.
-    [string]$URL="Not Found"
-    $versionfilter=$null
-    if($TargetedOS){
-        ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
-        $versionfilter= $OSReleaseHT.item($TargetedOS)
-    }
-
-    [string] $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
-    ## JSON Source to all Windows Update for Win10
-
-    ## Get the list of KBs for Win 10
-    try {
-        Write-Verbose "Gather JSon Data on $StartKB"
-        $KBs= Invoke-RestMethod -Uri $Startkb
-    } catch {
-        Write-Verbose "Problem gathering Json Data - Return Not Found"
-        return $URL
-    }
-
-    $LatestKB = "None"
-
-    # Get the Latest KB either latest or based on the version filter.
-    if($versionfilter){
-
-        Write-Verbose "Filtering on $versionfilter"
-        $LatestKB= ($kbs.links | Where-Object {$_.text -like "*$versionfilter*"})
-        if ($LatestKB.length -ne 0) {
-            $LatestKB=$LatestKB[0]
-        }
-    }
-    else {
-        $LatestKB=$KBs.links | Where-Object {$_.id -eq $KBs.links.Count}
-    }
-
-    if ($LatestKB -ne "None") {
-
-        ## Search for the KB GUID
-        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($LatestKB.articleID)%20x64%20windows%2010"
-#        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB4467702%20x64%20windows%2010"
-        # Parse the Response
-        $KBGUID=($kbObj.Links | Where-Object {$_.id -match "_link"}).id -replace "_link"
-        if ($KBGUID -ne "") {
-
-            $KBText=($kbObj.Links | Where-Object {$_.id -match "_link"}).innerText.ToLower()
-
-            $i=0
-            foreach ($kb in $KBGUID) {
-
-                if ($KBText.count -eq 1) {
-                    $curTxt = $KBText
-                } else {
-                    $curTxt = $KBText[$i]
-                }
-
-                if ($curTxt.Contains("cumulative")) {
-                    #Select only Cumulatives
-
-                    ##Create Post Request to get the Download URL of the Update
-                    $Post = @{ size = 0; updateID = $kb; uidInfo = $kb } | ConvertTo-Json -Compress
-                    $PostBody = @{ updateIDs = "[$Post]" }
-
-                    ## Fetch and parse the download URL
-                    $PostRes = (Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody).content
-                    $URL= ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
-                }
-                $i = $i + 1
-            }
-        }
-
-    }
-
-    ##Return the URL
-    Write-Verbose "Return URL : $URL"
-    return $URL
-}
 function New-LatestCUUrl{
     <#
     .SYNOPSIS
@@ -424,13 +322,13 @@ function New-LatestCUUrl{
     Author Eric Scherlinger ... Taken from another source :-)
         Written to enhance SurfUtil processing
     .EXAMPLE
-    Get-LatestCUURL
+    New-LatestCUURL
     .EXAMPLE
-    Get-LatestCUURL -TargetOS "1607"
+    New-LatestCUURL -TargetOS "1607"
     .PARAMETER TargetOS
     Enter the Win 10 Version number (1507,1511,1607,...) by default we use the latest version.
     .NOTES
-    NAME:  Get-LatestCUURL
+    NAME:  New-LatestCUURL
     #>
     param
     (
@@ -438,7 +336,7 @@ function New-LatestCUUrl{
         [string]$TargetedOS
     )
 
-    Write-Verbose "Get-LatestCUURL(TargetOS=$TargetedOS)"
+    Write-Verbose "New-LatestCUURL(TargetOS=$TargetedOS)"
     $dt = Get-Date -format "yyyy-MM"
 
     $uri = "http://www.catalog.update.microsoft.com/Search.aspx?q=$dt%20cumulative%20x64%20windows%2010%20$TargetedOS"
@@ -455,8 +353,13 @@ function New-LatestCUUrl{
 
         $KBText=($kbObj.Links | Where-Object {$_.id -match "_link"}).innerText.ToLower()
 
-        $kb=$KBGUID[0]
-        $curTxt = $KBText[0]
+        if ($KBGUID.Gettype().name -ne "String") {
+            $kb=$KBGUID[0]
+            $curTxt = $KBText[0]    
+        } else {
+            $kb=$KBGUID
+            $curTxt = $KBText
+        }
 
         write-host "Fetch : $curTxt"
         ##Create Post Request to get the Download URL of the Update
