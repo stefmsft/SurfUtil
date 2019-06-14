@@ -90,10 +90,11 @@
     <OSRelease>
         <TH1 ReleaseCode='1507' internalCode='10240' Supported='N'></TH1>
         <TH2 ReleaseCode='1511' internalCode='10586' Supported='N'></TH2>
-        <RS1 ReleaseCode='1607' internalCode='14393'></RS1>
+        <RS1 ReleaseCode='1607' internalCode='14393' Supported='N'></RS1>
         <RS2 ReleaseCode='1703' internalCode='15063'></RS2>
         <RS3 ReleaseCode='1709' internalCode='16299'></RS3>
         <RS4 ReleaseCode='1803' internalCode='17134'></RS4>
         <RS5 ReleaseCode='1809' internalCode='17763'></RS5>
+        <H1 ReleaseCode='1903' internalCode='18362'></H1>
     </OSRelease>
 </ModelsDB>
