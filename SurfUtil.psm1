@@ -518,10 +518,13 @@ function Set-USBKey {
         ,
         [Alias('InjectLPList')]
         [string[]]$InjLPList
+        ,
+        [Alias('autoaccept')]
+        [bool]$yes
         )
 
     begin {
-        Write-Verbose "Begin procesing Set-USBKey($Drv,$Src,$SurfaceModel,$TargetedOS,$DriverRepo,MakeISO=$MakeISO,Language=$lg,$TSku,InjLPPath=$InjLPPath,InjLPList=$InjLPList)"
+        Write-Verbose "Begin procesing Set-USBKey($Drv,$Src,$SurfaceModel,$TargetedOS,$DriverRepo,MakeISO=$MakeISO,Language=$lg,$TSku,InjLPPath=$InjLPPath,InjLPList=$InjLPList,AutoAccept=$yes)"
     }
 
     process {
@@ -540,25 +543,29 @@ function Set-USBKey {
                 return $False
             }
 
-            $message  = "If you agree, the external drive labeled [$TargetLabel] will be formated"
-            $question = 'Are you sure you want to proceed?'
-
-            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
-            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
-            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
-
-            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
-            if ($decision -eq 1) {
-
-                Write-Host 'Action canceled ...'
-                return $False
-
-            }
-
             #Check on the Source
             If(!(test-path $SrcISO)) {
                 write-verbose "$SrcISO directory doesn't exist"
                 return $False
+            }            
+
+            if ($yes -eq $flase) {
+
+                $message  = "If you agree, the external drive labeled [$TargetLabel] will be formated"
+                $question = 'Are you sure you want to proceed?'
+    
+                $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+                $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+                $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+    
+                $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+                if ($decision -eq 1) {
+    
+                    Write-Host 'Action canceled ...'
+                    return $False
+    
+                }
+    
             }
 
             $ISOFilter = "$lg*windows_10*_$TargetedOS*.iso"
@@ -1386,6 +1393,9 @@ function New-USBKey {
         ,
         [Alias('Log')]
         [string]$LogAsk
+        ,
+        [Alias('AutoAccept')]
+        [bool]$AAccept
     )
 
     begin {
@@ -1399,7 +1409,7 @@ function New-USBKey {
         }
 
 
-        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,language=$lg,InjLP$lppkg,=Log=$LogAsk,DirectInject=$DirInjection)"
+        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,language=$lg,InjLP$lppkg,=Log=$LogAsk,DirectInject=$DirInjection,AutoAccept=$AAccept)"
 
         $Global:SkipJ1 = $False
         $Global:SkipJ2 = $False
@@ -1481,9 +1491,9 @@ function New-USBKey {
             }
 
             if ($ResultISOLP -eq "") {
-                $ret = Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg
+                $ret = Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg -autoaccept $AAccept
             } else {
-                $ret = Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg -InjectLPPath $ResultISOLP -InjectLPList $lppkg
+                $ret = Set-USBKey -Drive $DrvLetter -SrcISO $SrcISO -Model $SurfaceModel -TargOS $TargetedOS -DrvRepo $DrvRepoPath -MakeISO $MkIso -Sku $TrgtSKU -language $lg -InjectLPPath $ResultISOLP -InjectLPList $lppkg -autoaccept $AAccept
             }
 
             return $ret

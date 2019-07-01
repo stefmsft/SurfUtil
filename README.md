@@ -150,6 +150,7 @@ A the date of the latest release this is :
 + RS3 (1709)
 + RS4 (1803)
 + RS5 (1809)
++ 19H1 (1903)
 
 As for the Drivers part, the available drivers version online will drive what the tool support ... For the boot key generation, you are in charge of providing the OS distribution you wish to use (iso file).The result will be as good as the quality of the ingredient you use with the tool.
 
@@ -187,7 +188,27 @@ https://github.com/stefmsft/SurfUtil.git
 
 3.	Latest releases
 
+    **Release 1.4**
+
+    In MakeBMR : 
+
+    - Changed some parameters from bool to switch mode. -Log -DirectInj -MakeISO doesn't take a $True or $False anymore. If specified in the command line it means the parameter is at $True, otherwise it is consider at $False by the script.
+
+    - Added a new switch parameter -Yes. If specified, no 
+    
+    - validation will be asked before processing the BMR
+
+    Added Support for 19H1
+
+    **Release 1.3**
+
+    A support for extra languages
+    A new script allowing the prepare and update with the latest CU, the ISO file use as a base for the key produced by MakeBMR
+    More failsafe checks in LoadAndCheck.ps1. This script should always be run before anything else to be sure that everything is ready to go.
+    Add support for Surface Pro 6, Laptop 2, Studio 2 and GO LTE
+
     **Release 1.2**
+
     This release include :
     - A support for extra languages (cf below)
     - A new script allowing the prepare and update with the latest CU, the ISO file use as a base for the key produced by MakeBMR

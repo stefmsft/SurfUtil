@@ -1,4 +1,4 @@
-Param(  [Parameter( Mandatory=$true)]
+Param(  [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [String]$Drive,
         [int]$WindowsVersion,
@@ -6,11 +6,12 @@ Param(  [Parameter( Mandatory=$true)]
         [string]$PathToISO,
         [String]$DrvRepo,
         [string]$WindowsEdition,
-        [bool]$MkISO=$false,
+        [switch]$MkISO,
         [string]$Language,
         [string[]]$InjLP,
-        [Bool]$DirectInj=$False,
-        [bool]$Log
+        [switch]$DirectInj,
+        [switch]$Log,
+        [switch]$Yes
     )
 
 Import-Module "$PSScriptRoot\SurfUtil.psm1" -force | Out-Null
@@ -23,6 +24,7 @@ try {
         Write-Host -ForegroundColor Red "Please use this script in an elevated Admin context"
         return $false
     }
+
 
     if ($Log -eq $true) {
 
@@ -118,8 +120,8 @@ try {
     Write-Host "Create a BMR Key for [$SurfaceModel] / [$TargetSKU $WindowsVersion]"
 
 
-    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log -DirectInj $DirectInj"
-    $ret = New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log -DirectInj $DirectInj
+    Write-Verbose "Calling New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log -DirectInj $DirectInj -AutoAccept $Yes"
+    $ret = New-USBKey -Drive $Drive -ISOPath $IsoPath -Model $SurfaceModel -OSV $WindowsVersion -DrvRepoPath $DrvRepo -MkIso $MkISO -TargetSKU $TargetSKU -Language $Language -InjectLP $InjLP -Log $Log -DirectInj $DirectInj -AutoAccept $Yes
 
     if ($DirectInj -eq $true) {
         if ($ret -eq $true) {
