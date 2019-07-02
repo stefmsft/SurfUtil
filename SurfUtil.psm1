@@ -549,7 +549,7 @@ function Set-USBKey {
                 return $False
             }            
 
-            if ($yes -eq $flase) {
+            if ($yes -eq $false) {
 
                 $message  = "If you agree, the external drive labeled [$TargetLabel] will be formated"
                 $question = 'Are you sure you want to proceed?'
