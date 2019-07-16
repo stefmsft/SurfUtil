@@ -14,14 +14,14 @@ Describe "Import-SurfaceDrivers" {
         $ret | Should -Be $True
     }
 }
-#Describe "Get-LatestCU" {
+Describe "Get-LatestCU" {
 
-#    ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
+    ($SurfModelHT,$OSReleaseHT,$SurfModelPS) = Import-SurfaceDB
 
-#    foreach ($OSVersion in $OSReleaseHT.keys) {
-#        $ret = Get-LatestCU -WindowsVersion $OSVersion -CheckOnly $True
-#        It "Is Working for $OSVersion" {
-#            $ret | Should -BeLike "*kb*.msu"
-#        }
-#    }
-#}
+    foreach ($OSVersion in $OSReleaseHT.keys) {
+        $ret = Get-LatestCU -WindowsVersion $OSVersion -CheckOnly
+        It "Is Working for $OSVersion" {
+            $ret | Should -BeLike "*kb*.msu"
+        }
+    }
+}

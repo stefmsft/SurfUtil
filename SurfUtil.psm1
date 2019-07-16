@@ -2390,7 +2390,7 @@ function Get-LatestCU {
     (
         [string]$WindowsVersion,
         [string]$LocalCUDir=".\WindowsCU",
-        [bool]$CheckOnly=$false
+        [switch]$CheckOnly
     )
 
     Write-Verbose "Get-LatestCU(WindowsVersion=$WindowsVersion,LocalCUDir=$LocalCUDir,CheckOnly=$CheckOnly)"
