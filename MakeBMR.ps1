@@ -1,3 +1,36 @@
+    <#
+    .DESCRIPTION
+    MakeBMR.ps1 allows you the generate an bootable USB Key for a model of Surface. This key will allow you to reinstal the machine in arround 20 min.
+    
+    .EXAMPLE
+
+    .\MakeBMR.ps1 -Drive D -WindowsVersion 1903 -SurfaceModel "Surface Pro 6" 
+    Create a bootable usb key for a Surface Pro 6 with 19H1 (language defaulted to the first ISO file found in the ISO directory)
+    .EXAMPLE
+
+    .\MakeBMR.ps1 -Drive D -WindowsVersion 1903 -SurfaceModel "Surface Laptop" -MkISO -InjLP "fr-fr","en-us" -Log -Verbose 
+    Create a bootable usb key for a Surface Laptop  with 19H1. I will add language pack for fr and Us. And ISO file will ba also created in the local directory. Verbosity will be on.
+
+    .PARAMETER Drive
+    This is the letter of the drive holding your usb key
+    .PARAMETER WindowsVersion
+    This is the 4 digit version of Windows 10 that you wish to use as a base for the key
+    .PARAMETER SurfaceModel
+    This is the Surface Model targeted for the key
+    .PARAMETER WindowsEdition
+    This is the SKU (pro,enterprise, etc ... ) targeted. The default value in Config.xml is "Windows 10 Pro*"
+    .PARAMETER MkISO
+    Boolean allowing to ask for the creation of a iso file that is a copy of the usb-key. Warning : This lead to a longer creation process.
+    .PARAMETER Language
+    This is a 2 letter selector (ex: "fr" or "en") allowing the tool to pickup a specific ISO file in the ISO directory. You can have for the same WindowsVersion target 2 or more ISOs available in your directory. The name schema of those file should be LL_windows_10*VVVV*.iso. The language parameter will replace LL in the seek for a valid OS ISO.
+    .PARAMETER InjLP
+    This is a list of 5 letters string identifying the extra language that will be supported during setup. Language pack injection require some care and preparation steps that are described below.
+    .PARAMETER DirectInj
+    Boolean that specify if we want to inject the drivers pack directly in the WIM (value $true) or thru a post setup step where the MSI is silently applied (value $False). The later offer a lot of advantage. This is why the default value is $False
+    .PARAMETER Log
+    oolean triggering a full verbosity of the operations when its value is $True. It is $False by default.
+    #>
+
 Param(  [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [String]$Drive,

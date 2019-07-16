@@ -930,8 +930,13 @@ function Set-USBKey {
                         foreach ($fd in $FilterMinBootDrv) {
                             Write-Verbose "Filter on : $fd"
                             $ExpDirSystDrv = (Get-ChildItem -Path $DrvExpandRoot -Filter $fd -Recurse -ErrorAction SilentlyContinue -Force).FullName
-                            Write-Verbose "Inject driver under $ExpDirSystDrv"
-                            Add-WindowsDriver -Path $MntDirBt -Driver $ExpDirSystDrv -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvBtInjLst.log
+                            if ($ExpDirSystDrv.count -gt 1) {
+                                $ExpDirSystDrvU = $ExpDirSystDrv[$ExpDirSystDrv.count - 1]
+                            } else {
+                                $ExpDirSystDrvU = $ExpDirSystDrv
+                            }
+                            Write-Verbose "Inject driver under $ExpDirSystDrvU"
+                            Add-WindowsDriver -Path $MntDirBt -Driver $ExpDirSystDrvU -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvBtInjLst.log
                         }
                         Write-verbose "Drivers injected in the new Wim"
 
@@ -969,8 +974,13 @@ function Set-USBKey {
                             foreach ($fd in $FilterMinBootDrv) {
                                 Write-Verbose "Filter on : $fd"
                                 $ExpDirSystDrv = (Get-ChildItem -Path $DrvExpandRoot -Filter $fd -Recurse -ErrorAction SilentlyContinue -Force).FullName
-                                Write-Verbose "Inject driver under $ExpDirSystDrv"
-                                Add-WindowsDriver -Path $MntDir -Driver $ExpDirSystDrv -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvInjLst.log
+                                if ($ExpDirSystDrv.count -gt 1) {
+                                    $ExpDirSystDrvU = $ExpDirSystDrv[$ExpDirSystDrv.count - 1]
+                                } else {
+                                    $ExpDirSystDrvU = $ExpDirSystDrv
+                                }
+                                Write-Verbose "Inject driver under $ExpDirSystDrvU"
+                                Add-WindowsDriver -Path $MntDir -Driver $ExpDirSystDrvU -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvInjLst.log
                             }
                         }
                         Copy-Item -Path $ENV:TMP\DrvInjLst.log -Destination ($Drv+":\DriversInjected.log")
@@ -1409,7 +1419,7 @@ function New-USBKey {
         }
 
 
-        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,language=$lg,InjLP$lppkg,=Log=$LogAsk,DirectInject=$DirInjection,AutoAccept=$AAccept)"
+        Write-Verbose "Begin procesing New-USBKey($DrvLetter,$SrcISO,$DrvRepoPath,$SurfaceModel,$TargetedOS,MakeISO=$MkIso,$TrgtSKU,language=$lg,InjLP=$lppkg,Log=$LogAsk,DirectInject=$DirInjection,AutoAccept=$AAccept)"
 
         $Global:SkipJ1 = $False
         $Global:SkipJ2 = $False
@@ -2177,14 +2187,7 @@ function Import-SurfaceDrivers {
     Surface Model targeted for the drivers
 
     Supported Models are :
-    - Surface Pro
-    - Surface Pro Lte
-    - Surface Laptop
-    - Surface Book 2
-    - Surface Book
-    - Surface Studio
-    - Surface Pro 4
-    - Surface Pro 3
+    All models listed in ModelsDB.xml
 
     .PARAMETER WindowsVersion
     Targeted Version of Windows 10
@@ -2390,7 +2393,7 @@ function Get-LatestCU {
     (
         [string]$WindowsVersion,
         [string]$LocalCUDir=".\WindowsCU",
-        [switch]$CheckOnly
+        [bool]$CheckOnly=$false
     )
 
     Write-Verbose "Get-LatestCU(WindowsVersion=$WindowsVersion,LocalCUDir=$LocalCUDir,CheckOnly=$CheckOnly)"
