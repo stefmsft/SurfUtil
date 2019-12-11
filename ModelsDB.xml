@@ -1,5 +1,11 @@
 <ModelsDB>
     <SurfacesModels>
+        <Surface ID='Surface Pro 7'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=100419'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
         <Surface ID='Surface Pro 6'>
             <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=57514'>
             </Drivers>
@@ -38,6 +44,24 @@
         </Surface>
         <Surface ID='Surface Laptop 2'>
             <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=57515'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Laptop 3'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=100429'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Laptop 3 AMD'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=100428'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Laptop 3 INTEL'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=100429'>
             </Drivers>
             <OS MinSupported=''>
             </OS>

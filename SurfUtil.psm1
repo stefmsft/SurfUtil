@@ -909,7 +909,7 @@ function Set-USBKey {
                 $ExpDirCnt = (Get-ChildItem -Path $DrvExpandRoot).count
                 Write-verbose "Found $ExpDirCnt item in the expanded MSI root directory"
 
-                $FilterMinBootDrv = @("System","camera")
+                $FilterMinBootDrv = @("System","camera","cameras","itouch","SurfaceTouch","surfacetouchfw","surfacetouchfw_0","surfacedigitizervirtualfunctionenum","OEMMOTOUCH","SurfaceIntegration","surfacetrackpad")
 
                 If($ExpDirCnt -gt 0) {
                     ## Mount Wim
@@ -935,8 +935,10 @@ function Set-USBKey {
                             } else {
                                 $ExpDirSystDrvU = $ExpDirSystDrv
                             }
-                            Write-Verbose "Inject driver under $ExpDirSystDrvU"
-                            Add-WindowsDriver -Path $MntDirBt -Driver $ExpDirSystDrvU -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvBtInjLst.log
+                            if ($null -ne $ExpDirSystDrvU) {
+                                Write-Verbose "Inject driver under $ExpDirSystDrvU"
+                                Add-WindowsDriver -Path $MntDirBt -Driver $ExpDirSystDrvU -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvBtInjLst.log    
+                            }
                         }
                         Write-verbose "Drivers injected in the new Wim"
 
@@ -967,7 +969,7 @@ function Set-USBKey {
                             Write-Host "Inject Drivers in the new Wim"
                             $cp = get-date
                             write-verbose $cp
-                            Add-WindowsDriver -Path $MntDir -Driver $DrvExpandRoot -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvInjLst.log
+                            Add-WindowsDriver -Path $MntDir -Driver $DrvExpandRoot -Recurse -LogPath $LogPath | Out-File -Append $ENV:TMP\DrvInjLst.log
                             Write-Host "Drivers injected in the new Wim"
 
                         } else {
@@ -979,11 +981,17 @@ function Set-USBKey {
                                 } else {
                                     $ExpDirSystDrvU = $ExpDirSystDrv
                                 }
-                                Write-Verbose "Inject driver under $ExpDirSystDrvU"
-                                Add-WindowsDriver -Path $MntDir -Driver $ExpDirSystDrvU -Recurse -LogPath $LogPath | Out-File $ENV:TMP\DrvInjLst.log
+                                if ($null -ne $ExpDirSystDrvU) {
+                                    Write-Verbose "Inject driver under $ExpDirSystDrvU"
+                                    Add-WindowsDriver -Path $MntDir -Driver $ExpDirSystDrvU -Recurse -LogPath $LogPath | Out-File -Append $ENV:TMP\DrvInjLst.log
+                                }
                             }
                         }
-                        Copy-Item -Path $ENV:TMP\DrvInjLst.log -Destination ($Drv+":\DriversInjected.log")
+                        if (Test-Path $ENV:TMP\DrvInjLst.log) {
+                            Copy-Item -Path $ENV:TMP\DrvInjLst.log -Destination ($Drv+":\DriversInjected.log")
+                        } else {
+                            Write-Verbose "WARNING : No driver Injected ?!? ... Check the msi package structure"
+                        }
 
                         #Inject Language Pack files
                         if ($InjLPList -ne "") {

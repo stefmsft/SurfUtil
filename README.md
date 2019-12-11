@@ -130,7 +130,10 @@ For instance :
 Here is below the list of Surface Model supported with the current version of the tool :
 + 'Surface Go'
 + 'Surface Go LTE'
++ 'Surface Pro 7'
 + 'Surface Pro 6'
++ 'Surface Pro 4'
++ 'Surface Pro 3'
 + 'Surface Pro'
 + 'Surface Pro LTE'
 + 'Surface Book'
@@ -139,8 +142,8 @@ Here is below the list of Surface Model supported with the current version of th
 + 'Surface Studio 2'
 + 'Surface LapTop'
 + 'Surface LapTop 2'
-+ 'Surface Pro 4'
-+ 'Surface Pro 3'
++ 'Surface LapTop 3 AMD' ([13¨/15¨])
++ 'Surface LapTop 3 INTEL' ([13¨/15¨])
 
 ## Supported Windows 10 OS Versions
 Basically the supported OS are the OS version for witch a supported driver package (msi file) is available. The qualifying OS Version are also reflecting the current supported version of Windows 10.
@@ -188,7 +191,27 @@ https://github.com/stefmsft/SurfUtil.git
 
 3.	Latest releases
 
-    **Release 1.4**
+    **Release 1.5**
+
+    In MakeBMR : 
+
+    - Adapted the filter logic for initial (boot) drivers injection as the structure of the MSI changed :-( - The scrip doesn't fail anymore if no drivers directory are found during the filter operation. Also I've tried to map the touch,keyboard and camera drivers from the new structure but I'm still not sure of the success of this attempt as I haven't been able to test on a Surface Laptop since my changes. So the bug might still be there in the logic of pre injection.
+
+    - Added Support for Pro 7, Surface Laptop 3 (INTEL/AMD)
+    FYI, mentioning "Surface Laptop 3" as a target model means automatically "Surface Laptop 3 INTEL"
+
+    Future improvement :
+
+    - This should be the last release of the tools from me as a Microsoft Employe. Not sure that I'll work more on it in the future ... Even though there's a ton of enhencement to provide and the office version of the tool seems to be delayed for now.
+    Among the differents ideas I had there :
+    + Make the MakeBMR more universal. Meaning, modifying the logic of the code to allow the creation of a MEGA USB Key. Such unique, but huge, key would be able to handle any model for a given language.
+    + Make the previous key able to handle multi languages in addtion.
+    + Allow the tool to generate ISOs without having to plug an USB key. Would be usefull for mass generation in the cloud.
+    + Clean up the code helped by a linter and some reviews.
+    + Make a ReadTheDoc documentation site.
+
+
+    **Release 1.3.1**
 
     In MakeBMR : 
 
