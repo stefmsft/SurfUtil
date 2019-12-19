@@ -154,6 +154,7 @@ A the date of the latest release this is :
 + RS4 (1803)
 + RS5 (1809)
 + 19H1 (1903)
++ 19H2 (1909)
 
 As for the Drivers part, the available drivers version online will drive what the tool support ... For the boot key generation, you are in charge of providing the OS distribution you wish to use (iso file).The result will be as good as the quality of the ingredient you use with the tool.
 

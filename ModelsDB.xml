@@ -120,5 +120,6 @@
         <RS4 ReleaseCode='1803' internalCode='17134'></RS4>
         <RS5 ReleaseCode='1809' internalCode='17763'></RS5>
         <H1 ReleaseCode='1903' internalCode='18362'></H1>
+        <H2 ReleaseCode='1909' internalCode='18363'></H2>
     </OSRelease>
 </ModelsDB>
