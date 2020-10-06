@@ -90,6 +90,12 @@
             <OS MinSupported=''>
             </OS>
         </Surface>
+        <Surface ID='Surface Book 3'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=101315'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
         <Surface ID='Surface Go'>
             <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=57439'>
             </Drivers>
@@ -98,6 +104,18 @@
         </Surface>
         <Surface ID='Surface Go LTE'>
             <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=57601'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Go 2'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=101304'>
+            </Drivers>
+            <OS MinSupported=''>
+            </OS>
+        </Surface>
+        <Surface ID='Surface Dock 2'>
+            <Drivers type='msi' url='https://www.microsoft.com/en-us/download/confirmation.aspx?id=101317'>
             </Drivers>
             <OS MinSupported=''>
             </OS>
@@ -119,7 +137,8 @@
         <RS3 ReleaseCode='1709' internalCode='16299'></RS3>
         <RS4 ReleaseCode='1803' internalCode='17134'></RS4>
         <RS5 ReleaseCode='1809' internalCode='17763'></RS5>
-        <H1 ReleaseCode='1903' internalCode='18362'></H1>
-        <H2 ReleaseCode='1909' internalCode='18363'></H2>
+        <R19H1 ReleaseCode='1903' internalCode='18362'></R19H1>
+        <R19H2 ReleaseCode='1909' internalCode='18363'></R19H2>
+        <R20H1 ReleaseCode='2004' internalCode='19041'></R20H1>
     </OSRelease>
 </ModelsDB>
